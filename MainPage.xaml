@@ -1,101 +1,194 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:DDepartures"
-             x:Class="DDepartures.MainPage">
-
-    <ContentPage.BindingContext>
-        <local:RestService />
-    </ContentPage.BindingContext>
-    <Grid
-        RowDefinitions="Auto, *, Auto, Auto"
-        ColumnDefinitions="*"
-        RowSpacing="8"
-        Padding="0,0,0,0"
-        BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}">
-
-        <Grid Grid.Row="0"
-            x:Name="TopRow"
-            RowDefinitions="Auto"
-            ColumnDefinitions="*">
-            <Image Grid.Column="0"
-                Source="vvologo.png"
-                HeightRequest="32"
-                Aspect="AspectFit"
-                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
-                SemanticProperties.Description="vvo logo" />
-        </Grid>
-        <RefreshView
-                    x:Name="RefView"
-                    Grid.Row="1"
-                    Padding="16,0,16,0"
-                    IsRefreshing="False"
-                    Focused="OnUnfocused"
-                    Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=RefreshCommand}">
-            <CollectionView
-                    x:Name="DepartureListView"
-                    Focused="OnUnfocused"
-                    ItemsSource="{Binding Responses}"
-                    SelectionMode="None">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.GestureRecognizers>
-                                <TapGestureRecognizer
-                                    Tapped="OnUnfocused"
-                                    Buttons="Primary, Secondary"
-                                    NumberOfTapsRequired="1" />
-                            </Grid.GestureRecognizers>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="1"/>
-                            </Grid.RowDefinitions>
-                            <Grid
-                                     Grid.Row="0"
-                                     Padding="0,4,0,4">
-                                <Label
-                                        FontFamily="monospace"
-                                        Text="{Binding .}" />
-                            </Grid>
-                            <BoxView
-                                    Grid.Row="1"
-                                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}" />
-                        </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </RefreshView>
-        <Grid Grid.Row="2"
-              Padding="16,4,16,0"
-              ColumnSpacing="8"
-              ColumnDefinitions="Auto, *">
-            <Label Grid.Column="0"
-                   FontSize="12"
-                   Text="Status:" />
-            <Label Grid.Column="1"
-                   FontSize="12"
-                   FontAttributes="Bold"
-                   x:Name="StatusLabel" />
-        </Grid>
-        <Grid Grid.Row="3"
-              Padding="8,0,8,8"
-              ColumnSpacing="8"
-              x:Name="BottomRow"
-              RowDefinitions="Auto"
-              ColumnDefinitions="*, Auto">
-            <Entry Grid.Column="0"
-                x:Name="SearchEntry"
-                SemanticProperties.Hint="Station"
-                ClearButtonVisibility="WhileEditing"
-                Placeholder="Stop name or ID"
-                ReturnType="Search"
-                Completed="OnSearchClicked"
-                Unfocused="OnUnfocused"/>
-            <Button Grid.Column="1"
-                x:Name="SearchBtn"
-                Text="Search"
-                SemanticProperties.Hint="Look for departures at station"
-                Clicked="OnSearchClicked" />
-        </Grid>
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+  xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+  xmlns:local="clr-namespace:DDepartures"
+  x:Class="DDepartures.MainPage"
+>
+  <ContentPage.BindingContext>
+    <local:RestService />
+  </ContentPage.BindingContext>
+  <Grid
+    RowDefinitions="Auto, *, Auto, Auto"
+    ColumnDefinitions="*"
+    Padding="0,0,0,0"
+    BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+  >
+    <Grid Grid.Row="0" x:Name="TopRow" RowDefinitions="8, Auto, 8" ColumnDefinitions="*">
+      <BoxView
+        Grid.Row="0"
+        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+      />
+      <Image
+        Grid.Row="1"
+        Source="vvologo.png"
+        HeightRequest="32"
+        Aspect="AspectFit"
+        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+        SemanticProperties.Description="vvo logo"
+      />
+      <BoxView
+        Grid.Row="2"
+        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+      />
     </Grid>
+    <RefreshView
+      x:Name="RefView"
+      Grid.Row="1"
+      Padding="16,0,16,0"
+      IsRefreshing="False"
+      Focused="OnUnfocused"
+      RefreshColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+      Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=RefreshCommand}"
+    >
+      <RefreshView.GestureRecognizers>
+        <TapGestureRecognizer
+          Tapped="OnUnfocused"
+          Buttons="Primary, Secondary"
+          NumberOfTapsRequired="1"
+        />
+      </RefreshView.GestureRecognizers>
+      <CollectionView
+        x:Name="DepartureListView"
+        Focused="OnUnfocused"
+        ItemsSource="{Binding Items}"
+        SelectionMode="None"
+      >
+        <CollectionView.ItemTemplate>
+          <DataTemplate>
+            <Grid
+              Padding="0,0,0,0"
+              RowDefinitions="6, Auto, 6, 2"
+              ColumnDefinitions="2, Auto, 8, *, 8, Auto, Auto, 2"
+            >
+              <Grid.GestureRecognizers>
+                <TapGestureRecognizer
+                  Tapped="OnUnfocused"
+                  Buttons="Primary, Secondary"
+                  NumberOfTapsRequired="1"
+                />
+              </Grid.GestureRecognizers>
+              <BoxView
+                Grid.Row="0"
+                Grid.ColumnSpan="8"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="0"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <Label
+                x:Name="LineLabel"
+                Grid.Row="1"
+                Grid.Column="1"
+                Padding="0"
+                FontFamily="monospace"
+                FontSize="20"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                TextColor="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource Black}}"
+                Text="{Binding [0]}"
+                HorizontalOptions="Center"
+                VerticalTextAlignment="Center"
+              />
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="2"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <Label
+                x:Name="DestinationLabel"
+                Grid.Row="1"
+                Grid.Column="3"
+                Padding="0"
+                FontFamily="monospace"
+                FontSize="20"
+                Text="{Binding [1]}"
+                HorizontalOptions="Start"
+                VerticalTextAlignment="Center"
+              />
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="4"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <Label
+                x:Name="TimeLabel"
+                Grid.Row="1"
+                Grid.Column="5"
+                Padding="0,2,0,0"
+                FontFamily="London"
+                FontSize="18"
+                Text="{Binding [2]}"
+                HorizontalOptions="End"
+                VerticalTextAlignment="Center"
+              />
+              <Label
+                x:Name="ApostropheLabel"
+                Grid.Row="1"
+                Grid.Column="6"
+                Padding="0,2,0,0"
+                FontFamily="London"
+                FontSize="18"
+                Text="'"
+                TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                HorizontalOptions="End"
+                VerticalTextAlignment="Center"
+              />
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="7"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <BoxView
+                Grid.Row="2"
+                Grid.ColumnSpan="8"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
+              <BoxView
+                Grid.Row="3"
+                Grid.ColumnSpan="8"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+              />
+            </Grid>
+          </DataTemplate>
+        </CollectionView.ItemTemplate>
+      </CollectionView>
+    </RefreshView>
+    <Grid Grid.Row="2" Padding="16,8,16,8" ColumnSpacing="8" ColumnDefinitions="Auto, *">
+      <Label Grid.Column="0" FontSize="12" Text="Status:" />
+      <Label Grid.Column="1" FontSize="12" FontAttributes="Bold" x:Name="StatusLabel" />
+    </Grid>
+    <Grid
+      Grid.Row="3"
+      Padding="8,0,8,8"
+      ColumnSpacing="8"
+      x:Name="BottomRow"
+      RowDefinitions="Auto"
+      ColumnDefinitions="*, Auto"
+    >
+      <Entry
+        Grid.Column="0"
+        x:Name="SearchEntry"
+        SemanticProperties.Hint="Station"
+        ClearButtonVisibility="WhileEditing"
+        Placeholder="Stop name or ID"
+        FontSize="18"
+        ReturnType="Search"
+        Completed="OnSearchClicked"
+        Unfocused="OnUnfocused"
+        Focused="OnFocused"
+      />
+      <Button
+        Grid.Column="1"
+        x:Name="SearchBtn"
+        Text="Search"
+        FontSize="18"
+        FontAttributes="Bold"
+        FontFamily="monospace"
+        SemanticProperties.Hint="Look for departures at station"
+        Clicked="OnSearchClicked"
+      />
+    </Grid>
+  </Grid>
 </ContentPage>

@@ -5,4 +5,16 @@
     xmlns:maui="using:Microsoft.Maui"
     xmlns:local="using:DDepartures.WinUI">
 
+  <maui:MauiWinUIApplication.Resources>
+    <ResourceDictionary>
+      <Color x:Key="Primary">#EEDD00</Color>
+      <Color x:Key="PrimaryDark">#DDCC00</Color>
+      <StaticResource x:Key="SystemAccentColorDark1" ResourceKey="PrimaryDark"/>
+      <StaticResource x:Key="SystemAccentColorDark2" ResourceKey="PrimaryDark"/>
+      <StaticResource x:Key="SystemAccentColorDark3" ResourceKey="PrimaryDark"/>
+      <StaticResource x:Key="SystemAccentColorLight1" ResourceKey="Primary"/>
+      <StaticResource x:Key="SystemAccentColorLight2" ResourceKey="Primary"/>
+      <StaticResource x:Key="SystemAccentColorLight3" ResourceKey="Primary"/>
+    </ResourceDictionary>
+  </maui:MauiWinUIApplication.Resources>
 </maui:MauiWinUIApplication>

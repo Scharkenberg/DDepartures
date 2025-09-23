@@ -4,8 +4,9 @@ namespace DDepartures
 {
     public partial class MainPage : ContentPage, IDisposable
     {
-		readonly DDepartures.RestService svc;
+        readonly DDepartures.RestService svc;
         bool disposed;
+
         public MainPage()
         {
             InitializeComponent();
@@ -45,17 +46,35 @@ namespace DDepartures
             else
             {
                 StatusLabel.TextColor = (Color)Application.Current.Resources["Success"];
-                DepartureListView.ItemsSource = svc.Responses;
+                DepartureListView.ItemsSource = svc.Items;
             }
             return;
         }
+
         private void OnUnfocused(object? sender, FocusEventArgs e)
         {
             SearchEntry.IsEnabled = false;
             SearchEntry.IsEnabled = true;
         }
+        private void OnFocused(object? sender, FocusEventArgs e)
+        {
+            StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
+            StatusLabel.Text = "Ready to go";
+        }
 
-        public ICommand RefreshCommand => new Command(() => OnSearchClicked(null, new EventArgs()));
+        public ICommand RefreshCommand => new Command(() =>
+        {
+            if (SearchEntry.Text == "")
+            {
+                StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
+                StatusLabel.Text = "Enter valid ID";
+                DepartureListView.ItemsSource = null;
+                RefView.IsRefreshing = false;
+                return;
+            }
+            OnSearchClicked(null, new EventArgs());
+        });
+
         public void Dispose()
         {
             Dispose(true);
@@ -64,7 +83,8 @@ namespace DDepartures
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed) return;
+            if (disposed)
+                return;
             if (disposing)
             {
                 // Managed cleanup
@@ -87,9 +107,6 @@ namespace DDepartures
             Dispose(false);
         }
 
-		private void TapGestureRecognizer_Tapped(object sender, TappedEventArgs e)
-		{
-
-        }
+        private void TapGestureRecognizer_Tapped(object sender, TappedEventArgs e) { }
     }
 }

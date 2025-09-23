@@ -16,8 +16,6 @@ namespace DDepartures
 		public string StatusResponse { get; private set; }
 
         public ObservableCollection<List<string>>? Items { get; private set; }
-		
-		public ObservableCollection<string>? Responses { get; private set; }
 
         public RestService()
 		{
@@ -30,13 +28,14 @@ namespace DDepartures
 			};
 			_client.DefaultRequestHeaders.Clear();
 			Items = new ObservableCollection<List<string>>();
-            Responses = new ObservableCollection<string>();
 			StatusResponse = "Ready to go";
 			IsRefreshing = false;
         }
 
 		public async Task<int> RefreshDataAsync(string args)
 		{
+			short LineCharCount = 0;
+			short TimeCharCount = 0;
 			_client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 			_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.16.0");
 			var response = await _client.GetAsync($"http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?lim=50&hst={args}");
@@ -44,19 +43,25 @@ namespace DDepartures
             StatusResponse = status + " - " + response.StatusCode.ToString();
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				return status;
-			Responses.Clear();
             var json =  await response.Content.ReadAsStringAsync();
 			Items = JsonSerializer.Deserialize<ObservableCollection<List<string>>>(json, _serializerOptions);
 			foreach (var item in Items)
 			{
 				if (item.Count != 3)
-					continue;
+					item[1] += " - ERROR";
 				if (item[2] == "")
 					item[2] = "0";
-				string entry = $"{item[0],5} {item[1]} {item[2],5}'";
-				Responses.Add(entry);
+				if (item[0].Length > LineCharCount)
+					LineCharCount = (short)item[0].Length;
+				if (item[2].Length > TimeCharCount)
+					TimeCharCount = (short)item[2].Length;
             }
-			_client.DefaultRequestHeaders.Clear();
+			foreach (var item in Items)
+			{
+				item[0] = item[0].PadLeft(LineCharCount);
+				item[2] = item[2].PadLeft(TimeCharCount);
+			}
+            _client.DefaultRequestHeaders.Clear();
             return status;
 		}
 
