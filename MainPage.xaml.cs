@@ -14,9 +14,10 @@ namespace DDepartures
             DepartureListView.ItemsSource = svc.Items;
             StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
             StatusLabel.Text = svc.StatusResponse;
+            // svc.PeriodicRefresh(svc.LastSuccessfulArgs, 10);
         }
 
-        private async void OnSearchClicked(object? sender, EventArgs e)
+        public async void OnSearchClicked(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(SearchEntry.Text))
             {
@@ -51,12 +52,12 @@ namespace DDepartures
             return;
         }
 
-        private void OnUnfocused(object? sender, FocusEventArgs e)
+        public void OnUnfocused(object? sender, FocusEventArgs e)
         {
             SearchEntry.IsEnabled = false;
             SearchEntry.IsEnabled = true;
         }
-        private void OnFocused(object? sender, FocusEventArgs e)
+        public void OnFocused(object? sender, FocusEventArgs e)
         {
             StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
             StatusLabel.Text = "Ready to go";
@@ -106,7 +107,5 @@ namespace DDepartures
             // Safety net only; do not touch UI here
             Dispose(false);
         }
-
-        private void TapGestureRecognizer_Tapped(object sender, TappedEventArgs e) { }
     }
 }

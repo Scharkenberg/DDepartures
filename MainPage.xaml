@@ -59,7 +59,7 @@
             <Grid
               Padding="0,0,0,0"
               RowDefinitions="6, Auto, 6, 2"
-              ColumnDefinitions="2, Auto, 8, *, 8, Auto, Auto, 2"
+              ColumnDefinitions="2, 4, Auto, 4, 8, *, 8, Auto, Auto, 2"
             >
               <Grid.GestureRecognizers>
                 <TapGestureRecognizer
@@ -70,7 +70,7 @@
               </Grid.GestureRecognizers>
               <BoxView
                 Grid.Row="0"
-                Grid.ColumnSpan="8"
+                Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
               <BoxView
@@ -78,13 +78,19 @@
                 Grid.Column="0"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="1"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+              />
               <Label
                 x:Name="LineLabel"
                 Grid.Row="1"
-                Grid.Column="1"
+                Grid.Column="2"
                 Padding="0"
-                FontFamily="monospace"
-                FontSize="20"
+                FontFamily="CascadiaCode"
+                FontSize="18"
+                FontAttributes="Bold"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
                 TextColor="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource Black}}"
                 Text="{Binding [0]}"
@@ -93,43 +99,53 @@
               />
               <BoxView
                 Grid.Row="1"
-                Grid.Column="2"
-                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
-              />
-              <Label
-                x:Name="DestinationLabel"
-                Grid.Row="1"
                 Grid.Column="3"
-                Padding="0"
-                FontFamily="monospace"
-                FontSize="20"
-                Text="{Binding [1]}"
-                HorizontalOptions="Start"
-                VerticalTextAlignment="Center"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
               />
               <BoxView
                 Grid.Row="1"
                 Grid.Column="4"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
+              <ScrollView
+                Orientation="Horizontal"
+                HorizontalScrollBarVisibility="Never"
+                Grid.Row="1"
+                Grid.Column="5">
+                <Label
+                  x:Name="DestinationLabel"
+                  Padding="0"
+                  FontFamily="CascadiaCode"
+                  FontSize="18"
+                  Text="{Binding [1]}"
+                  HorizontalOptions="Start"
+                  VerticalTextAlignment="Center"
+                />
+              </ScrollView>
+              <BoxView
+                Grid.Row="1"
+                Grid.Column="6"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
+              />
               <Label
                 x:Name="TimeLabel"
                 Grid.Row="1"
-                Grid.Column="5"
+                Grid.Column="7"
                 Padding="0,2,0,0"
                 FontFamily="London"
-                FontSize="18"
+                FontSize="16"
                 Text="{Binding [2]}"
-                HorizontalOptions="End"
+                CharacterSpacing="2"
+                HorizontalOptions="Center"
                 VerticalTextAlignment="Center"
               />
               <Label
                 x:Name="ApostropheLabel"
                 Grid.Row="1"
-                Grid.Column="6"
-                Padding="0,2,0,0"
+                Grid.Column="8"
+                Padding="2,2,0,0"
                 FontFamily="London"
-                FontSize="18"
+                FontSize="16"
                 Text="'"
                 TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
                 HorizontalOptions="End"
@@ -137,17 +153,17 @@
               />
               <BoxView
                 Grid.Row="1"
-                Grid.Column="7"
+                Grid.Column="9"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
               <BoxView
                 Grid.Row="2"
-                Grid.ColumnSpan="8"
+                Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
               <BoxView
                 Grid.Row="3"
-                Grid.ColumnSpan="8"
+                Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
               />
             </Grid>
@@ -173,6 +189,7 @@
         SemanticProperties.Hint="Station"
         ClearButtonVisibility="WhileEditing"
         Placeholder="Stop name or ID"
+        FontFamily="CascadiaCode"
         FontSize="18"
         ReturnType="Search"
         Completed="OnSearchClicked"
@@ -184,8 +201,7 @@
         x:Name="SearchBtn"
         Text="Search"
         FontSize="18"
-        FontAttributes="Bold"
-        FontFamily="monospace"
+        FontFamily="CascadiaCode"
         SemanticProperties.Hint="Look for departures at station"
         Clicked="OnSearchClicked"
       />

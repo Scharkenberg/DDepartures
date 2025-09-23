@@ -13,7 +13,7 @@ namespace DDepartures
                 {
  //                   fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
  //                   fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                    fonts.AddFont("CascadiaCode.ttf", "monospace");
+                    fonts.AddFont("CascadiaCode.ttf", "CascadiaCode");
                     fonts.AddFont("London.ttf", "London");
                 });
 
