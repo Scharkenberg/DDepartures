@@ -5,21 +5,18 @@
   xmlns:local="clr-namespace:DDepartures"
   x:Class="DDepartures.MainPage"
 >
-  <ContentPage.BindingContext>
-    <local:RestService />
-  </ContentPage.BindingContext>
   <Grid
     RowDefinitions="Auto, *, Auto, Auto"
     ColumnDefinitions="*"
     Padding="0,0,0,0"
     BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
   >
-    <Grid Grid.Row="0" x:Name="TopRow" RowDefinitions="8, Auto, 8" ColumnDefinitions="*">
-      <BoxView
+	<Grid Grid.Row="0" x:Name="TopRow" RowDefinitions="8, Auto, 8" ColumnDefinitions="*">
+	  <BoxView
         Grid.Row="0"
         BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
       />
-      <Image
+	  <Image
         Grid.Row="1"
         Source="vvologo.png"
         HeightRequest="32"
@@ -27,63 +24,66 @@
         BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
         SemanticProperties.Description="vvo logo"
       />
-      <BoxView
+	  <BoxView
         Grid.Row="2"
         BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
       />
-    </Grid>
-    <RefreshView
+	</Grid>
+
+	<!-- Departures list (starts invisible) -->
+	<RefreshView
       x:Name="RefView"
       Grid.Row="1"
       Padding="16,0,16,0"
-      IsRefreshing="False"
+      IsRefreshing="{Binding DeparturesRefreshing, Mode=TwoWay}"
+      IsVisible="False"
       Focused="OnUnfocused"
       RefreshColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
       Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=RefreshCommand}"
     >
-      <RefreshView.GestureRecognizers>
-        <TapGestureRecognizer
-          Tapped="OnUnfocused"
+	  <RefreshView.GestureRecognizers>
+		<TapGestureRecognizer
+          Tapped="OnTapped"
           Buttons="Primary, Secondary"
           NumberOfTapsRequired="1"
         />
-      </RefreshView.GestureRecognizers>
-      <CollectionView
+	  </RefreshView.GestureRecognizers>
+	  <CollectionView
         x:Name="DepartureListView"
         Focused="OnUnfocused"
-        ItemsSource="{Binding Items}"
+        ItemsSource="{Binding DepItems}"
         SelectionMode="None"
       >
-        <CollectionView.ItemTemplate>
-          <DataTemplate>
-            <Grid
+		<CollectionView.ItemTemplate>
+		  <DataTemplate>
+			<Grid
               Padding="0,0,0,0"
               RowDefinitions="6, Auto, 6, 2"
               ColumnDefinitions="2, 4, Auto, 4, 8, *, 8, Auto, Auto, 2"
             >
-              <Grid.GestureRecognizers>
-                <TapGestureRecognizer
-                  Tapped="OnUnfocused"
+			  <Grid.GestureRecognizers>
+				<TapGestureRecognizer
+                  Tapped="OnTapped"
                   Buttons="Primary, Secondary"
                   NumberOfTapsRequired="1"
                 />
-              </Grid.GestureRecognizers>
-              <BoxView
+			  </Grid.GestureRecognizers>
+			  <BoxView
                 Grid.Row="0"
                 Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="0"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="1"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
               />
-              <Label
+			  <Label
                 x:Name="LineLabel"
                 Grid.Row="1"
                 Grid.Column="2"
@@ -97,22 +97,22 @@
                 HorizontalOptions="Center"
                 VerticalTextAlignment="Center"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="3"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="4"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <ScrollView
+			  <ScrollView
                 Orientation="Horizontal"
                 HorizontalScrollBarVisibility="Never"
                 Grid.Row="1"
                 Grid.Column="5">
-                <Label
+				<Label
                   x:Name="DestinationLabel"
                   Padding="0"
                   FontFamily="CascadiaCode"
@@ -121,13 +121,13 @@
                   HorizontalOptions="Start"
                   VerticalTextAlignment="Center"
                 />
-              </ScrollView>
-              <BoxView
+			  </ScrollView>
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="6"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <Label
+			  <Label
                 x:Name="TimeLabel"
                 Grid.Row="1"
                 Grid.Column="7"
@@ -139,7 +139,7 @@
                 HorizontalOptions="Center"
                 VerticalTextAlignment="Center"
               />
-              <Label
+			  <Label
                 x:Name="ApostropheLabel"
                 Grid.Row="1"
                 Grid.Column="8"
@@ -151,39 +151,93 @@
                 HorizontalOptions="End"
                 VerticalTextAlignment="Center"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="1"
                 Grid.Column="9"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="2"
                 Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource BackgroundDark}}"
               />
-              <BoxView
+			  <BoxView
                 Grid.Row="3"
                 Grid.ColumnSpan="10"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
               />
-            </Grid>
-          </DataTemplate>
-        </CollectionView.ItemTemplate>
-      </CollectionView>
-    </RefreshView>
-    <Grid Grid.Row="2" Padding="16,8,16,8" ColumnSpacing="8" ColumnDefinitions="Auto, *">
-      <Label Grid.Column="0" FontSize="12" Text="Status:" />
-      <Label Grid.Column="1" FontSize="12" FontAttributes="Bold" x:Name="StatusLabel" />
-    </Grid>
-    <Grid
+			</Grid>
+		  </DataTemplate>
+		</CollectionView.ItemTemplate>
+	  </CollectionView>
+	</RefreshView>
+
+	<!-- PointFinder results CollectionView (starts invisible) -->
+	<CollectionView
+      x:Name="PointFinderView"
+      Grid.Row="1"
+      IsVisible="False"
+      ItemsSource="{Binding PointResults}"
+      SelectionMode="Single"
+	  VerticalOptions="End"
+    >
+	  <CollectionView.GestureRecognizers>
+		<TapGestureRecognizer
+          Tapped="OnTapped"
+          Buttons="Primary, Secondary"
+          NumberOfTapsRequired="1"
+        />
+	  </CollectionView.GestureRecognizers>
+
+	  <CollectionView.ItemTemplate>
+		<DataTemplate>
+		  <!-- One row per result, three columns: City | Name | Id -->
+		  <Grid Padding="8,6" ColumnDefinitions="Auto,*,Auto">
+			<Label
+              Grid.Column="0"
+              Text="{Binding City}"
+              FontFamily="CascadiaCode"
+              FontSize="18"
+              VerticalTextAlignment="Center"
+              LineBreakMode="TailTruncation"
+            />
+			<Label
+              Grid.Column="1"
+              Text="{Binding Name}"
+              FontFamily="CascadiaCode"
+              FontSize="18"
+              VerticalTextAlignment="Center"
+              LineBreakMode="TailTruncation"
+			  HorizontalTextAlignment="Start"
+            />
+			<Label
+              Grid.Column="2"
+              Text="{Binding Id}"
+              FontFamily="London"
+              FontSize="16"
+              VerticalTextAlignment="Center"
+              HorizontalTextAlignment="End"
+            />
+		  </Grid>
+		</DataTemplate>
+	  </CollectionView.ItemTemplate>
+	</CollectionView>
+
+	<Grid Grid.Row="2" Padding="16,8,16,8" ColumnSpacing="8" ColumnDefinitions="Auto, *">
+	  <Label Grid.Column="0" FontSize="12" Text="Status:" />
+	  <Label Grid.Column="1" FontSize="12" FontAttributes="Bold" x:Name="StatusLabel"
+             Text="{Binding StatusResponse}" />
+	</Grid>
+
+	<Grid
       Grid.Row="3"
       Padding="8,0,8,8"
       ColumnSpacing="8"
       x:Name="BottomRow"
       RowDefinitions="Auto"
-      ColumnDefinitions="*, Auto"
+      ColumnDefinitions="*, Auto, Auto"
     >
-      <Entry
+	  <Entry
         Grid.Column="0"
         x:Name="SearchEntry"
         SemanticProperties.Hint="Station"
@@ -195,16 +249,28 @@
         Completed="OnSearchClicked"
         Unfocused="OnUnfocused"
         Focused="OnFocused"
+		TextChanged="OnTextChanged"
       />
-      <Button
+	  <Button
         Grid.Column="1"
         x:Name="SearchBtn"
-        Text="Search"
+        Text="🔍"
         FontSize="18"
-        FontFamily="CascadiaCode"
+        FontFamily="{OnPlatform WinUI='Segoe UI Emoji', Android='Noto Color Emoji', iOS='Apple Color Emoji'}"
         SemanticProperties.Hint="Look for departures at station"
+		AutomationProperties.HelpText="Search"
         Clicked="OnSearchClicked"
       />
-    </Grid>
+	  <Button
+        Grid.Column="2"
+        x:Name="FindBtn"
+        Text="📍"
+        FontSize="18"
+        FontFamily="{OnPlatform WinUI='Segoe UI Emoji', Android='Noto Color Emoji', iOS='Apple Color Emoji'}"
+        SemanticProperties.Hint="Find station using PointFinder"
+		AutomationProperties.HelpText="Find"
+        Clicked="OnFindClicked"
+      />
+	</Grid>
   </Grid>
 </ContentPage>
