@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-
-namespace DDepartures
+﻿namespace DDepartures
 {
 	public static class MauiProgram
 	{
@@ -16,10 +14,6 @@ namespace DDepartures
 					fonts.AddFont("CascadiaCode.ttf", "CascadiaCode");
 					fonts.AddFont("London.ttf", "London");
 				});
-
-#if DEBUG
-    		builder.Logging.AddDebug();
-#endif
 			return builder.Build();
 		}
 	}
