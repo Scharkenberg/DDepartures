@@ -5,6 +5,10 @@
   xmlns:local="clr-namespace:DDepartures"
 	x:Class="DDepartures.MainPage"
 >
+  <ContentPage.Resources>
+    <local:DepartureStateToColorConverter x:Key="StateToColorConverter" />
+  </ContentPage.Resources>
+
   <Grid
     RowDefinitions="Auto, *, Auto, Auto"
     ColumnDefinitions="*"
@@ -135,6 +139,7 @@
                 FontFamily="London"
                 FontSize="16"
                 Text="{Binding Time}"
+                TextColor="{Binding State, Converter={StaticResource StateToColorConverter}}"
                 CharacterSpacing="2"
                 HorizontalOptions="Center"
                 VerticalTextAlignment="Center"

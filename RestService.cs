@@ -1,4 +1,6 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace DDepartures
@@ -62,6 +64,13 @@ namespace DDepartures
 		};
 
 		private const int MAX_DEPARTURES = 50;
+		private const string DepartureMonitorUrl = "https://webapi.vvo-online.de/dm";
+
+		private static readonly string[] DefaultModesOfTransport =
+		[
+			"Tram", "CityBus", "IntercityBus", "SuburbanRailway",
+			"Train", "Cableway", "Ferry", "HailedSharedTaxi"
+		];
 
 		// Backing fields
 		private ObservableCollection<DepartureRow> _depItems = [];
@@ -117,6 +126,9 @@ namespace DDepartures
 		}
 
 		// --- RefreshDataAsync (departures) ---
+		// Uses the VVO WebAPI departure monitor (POST /dm) - the same backend as the
+		// official DVB mobil app. Gives real-time state, platform and occupancy that
+		// the old Widget API (Abfahrten.do) doesn't expose.
 		public async Task<int> RefreshDataAsync(string args)
 		{
 			try
@@ -133,24 +145,29 @@ namespace DDepartures
 
 				EnsureJsonHeaders();
 
+				var requestBody = new DmRequest
+				{
+					StopId = args,
+					Limit = MAX_DEPARTURES,
+					Mot = DefaultModesOfTransport
+				};
+
 				HttpResponseMessage response;
 				try
 				{
-					using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10)))
-					{
-						response = await _client.GetAsync(
-							$"http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?lim=50&hst={Uri.EscapeDataString(args)}",
-							System.Net.Http.HttpCompletionOption.ResponseContentRead,
-							cts.Token
-						);
-					}
+					using var requestContent = new StringContent(
+						JsonSerializer.Serialize(requestBody, _serializerOptions),
+						Encoding.UTF8,
+						"application/json");
+					using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+					response = await _client.PostAsync(DepartureMonitorUrl, requestContent, cts.Token);
 				}
 				catch (System.Threading.Tasks.TaskCanceledException)
 				{
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					DepItems?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -158,7 +175,6 @@ namespace DDepartures
 					StatusResponse = $"Network error: {ex.Message}";
 					LastStatus = 0;
 					DepItems?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -166,7 +182,6 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.Message}";
 					LastStatus = 500;
 					DepItems?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -175,7 +190,6 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					DepItems?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -185,24 +199,23 @@ namespace DDepartures
 				if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				{
 					DepItems?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
 				LastSuccessfulArgs = args;
 
-				JsonDocument doc;
+				DmResponse? doc;
 				try
 				{
 					using var json = await response.Content.ReadAsStreamAsync();
 					using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
-					doc = await JsonDocument.ParseAsync(json, cancellationToken: cts.Token);
-					if (string.IsNullOrWhiteSpace(doc.ToString()))
+					doc = await JsonSerializer.DeserializeAsync<DmResponse>(json, _serializerOptions, cts.Token);
+
+					if (doc == null)
 					{
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						DepItems = [];
-						_client.DefaultRequestHeaders.Clear();
 						return LastStatus;
 					}
 				}
@@ -211,13 +224,26 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					DepItems = [];
-					_client.DefaultRequestHeaders.Clear();
+					return LastStatus;
+				}
+
+				// The /dm endpoint can return HTTP 200 with an application-level error
+				// in the body (e.g. an unknown stop ID) - check Status.Code, not just the HTTP code.
+				if (!string.Equals(doc.Status?.Code, "Ok", StringComparison.OrdinalIgnoreCase))
+				{
+					StatusResponse = doc.Status?.Code switch
+					{
+						"NoData" => "No departures found for this station",
+						"InvalidRequest" => "Error: Invalid station ID",
+						_ => $"Server reported: {doc.Status?.Code ?? "unknown status"}"
+					};
+					DepItems = [];
 					return LastStatus;
 				}
 
 				try
 				{
-					var raw = JsonSerializer.Deserialize<ObservableCollection<List<string>>>(doc, _serializerOptions);
+					var raw = doc.Departures;
 
 					if (raw == null || raw.Count == 0)
 					{
@@ -227,23 +253,40 @@ namespace DDepartures
 					}
 
 					var parsed = new ObservableCollection<DepartureRow>();
+					var now = DateTimeOffset.Now;
 
-					foreach (var row in raw)
+					foreach (var d in raw)
 					{
-						if (row == null || row.Count < 3)
+						if (d == null)
 							continue;
+
+						// Prefer RealTime (accounts for delay); fall back to ScheduledTime.
+						var reference = d.RealTime ?? d.ScheduledTime;
+						var timeText = "?";
+						if (reference.HasValue)
+						{
+							var minutes = (int)Math.Round((reference.Value - now).TotalMinutes, MidpointRounding.AwayFromZero);
+							timeText = Math.Max(minutes, 0).ToString(CultureInfo.InvariantCulture);
+						}
+
+						// CancelReasons is the reliable cancellation signal - State alone isn't documented to carry it.
+						var isCancelled = d.CancelReasons is { Count: > 0 };
 
 						parsed.Add(new DepartureRow
 						{
-							Line = row[0]?.Trim() ?? "",
-							Destination = row[1]?.Trim() ?? "",
-							Time = row[2]?.Trim() ?? ""
+							Line = d.LineName?.Trim() ?? "",
+							Destination = d.Direction?.Trim() ?? "",
+							Time = timeText,
+							Platform = d.Platform?.Name?.Trim() ?? "",
+							Mot = d.Mot ?? "",
+							State = isCancelled ? "Cancelled" : (d.State ?? "Unknown"),
+							Occupancy = d.Occupancy ?? "Unknown"
 						});
 					}
 
 					DepItems = parsed;
 
-					// Trim to max
+					// Trim to max (safety net - limit is also requested server-side)
 					if (DepItems.Count > MAX_DEPARTURES)
 					{
 						while (DepItems.Count > MAX_DEPARTURES)
@@ -255,7 +298,6 @@ namespace DDepartures
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					DepItems = [];
 					LastStatus = 500;
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -268,8 +310,6 @@ namespace DDepartures
 						{
 							if (item == null)
 								continue;
-							if (item.Time == "")
-								item.Time = "0";
 							if (item.Line.Length > LineCharCount)
 								LineCharCount = (short)item.Line.Length;
 							if (item.Time.Length > TimeCharCount)
@@ -291,7 +331,6 @@ namespace DDepartures
 					LastStatus = 500;
 				}
 
-				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -299,7 +338,6 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				DepItems = [];
 				LastStatus = 500;
-				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;
 			}
 		}
