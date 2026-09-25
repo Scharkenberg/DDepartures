@@ -3,7 +3,7 @@
   xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
   xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
   xmlns:local="clr-namespace:DDepartures"
-  x:Class="DDepartures.MainPage"
+	x:Class="DDepartures.MainPage"
 >
   <Grid
     RowDefinitions="Auto, *, Auto, Auto"
@@ -93,7 +93,7 @@
                 FontAttributes="Bold"
                 BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
                 TextColor="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource Black}}"
-                Text="{Binding [0]}"
+                Text="{Binding Line}"
                 HorizontalOptions="Center"
                 VerticalTextAlignment="Center"
               />
@@ -117,7 +117,7 @@
                   Padding="0"
                   FontFamily="CascadiaCode"
                   FontSize="18"
-                  Text="{Binding [1]}"
+                  Text="{Binding Destination}"
                   HorizontalOptions="Start"
                   VerticalTextAlignment="Center"
                 />
@@ -134,7 +134,7 @@
                 Padding="0,2,0,0"
                 FontFamily="London"
                 FontSize="16"
-                Text="{Binding [2]}"
+                Text="{Binding Time}"
                 CharacterSpacing="2"
                 HorizontalOptions="Center"
                 VerticalTextAlignment="Center"

@@ -1,12 +1,11 @@
-﻿// File: Services/RestService.cs
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Text.Json;
 
 namespace DDepartures
 {
 
 	// RestService used by the UI (parameterless ctor for XAML)
-	public class RestService : NotifyBase, IDisposable
+	public partial class RestService : NotifyBase, IDisposable
 	{
 		// Shared HttpClient support
 		private static HttpClient? _sharedHttpClient;
@@ -40,7 +39,24 @@ namespace DDepartures
 			_ownsClient = false;
 		}
 
-		private readonly JsonSerializerOptions _serializerOptions = new JsonSerializerOptions
+		private bool _headersInitialized;
+
+		private void EnsureJsonHeaders()
+		{
+			if (_headersInitialized)
+				return;
+
+			_client.DefaultRequestHeaders.Accept.Clear();
+			_client.DefaultRequestHeaders.Accept.Add(
+				new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+			_client.DefaultRequestHeaders.UserAgent.Clear();
+			_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.21.0");
+
+			_headersInitialized = true;
+		}
+
+		private readonly JsonSerializerOptions _serializerOptions = new()
 		{
 			PropertyNameCaseInsensitive = true
 		};
@@ -48,23 +64,23 @@ namespace DDepartures
 		private const int MAX_DEPARTURES = 50;
 
 		// Backing fields
-		private ObservableCollection<List<string>> _depItems = new ObservableCollection<List<string>>();
-		private ObservableCollection<PointResult> _pointResults = new ObservableCollection<PointResult>();
+		private ObservableCollection<DepartureRow> _depItems = [];
+		private ObservableCollection<PointResult> _pointResults = [];
 		private string _statusResponse = string.Empty;
 		private int _lastStatus = 0;
 		private string _lastSuccessfulArgs = string.Empty;
 
 		// Public properties (raise PropertyChanged via NotifyBase)
-		public ObservableCollection<List<string>> DepItems
+		public ObservableCollection<DepartureRow> DepItems
 		{
 			get => _depItems;
-			private set => SetProperty(ref _depItems, value ?? new ObservableCollection<List<string>>());
+			private set => SetProperty(ref _depItems, value ?? []);
 		}
 
 		public ObservableCollection<PointResult> PointResults
 		{
 			get => _pointResults;
-			private set => SetProperty(ref _pointResults, value ?? new ObservableCollection<PointResult>());
+			private set => SetProperty(ref _pointResults, value ?? []);
 		}
 
 		public string StatusResponse
@@ -115,10 +131,7 @@ namespace DDepartures
 				short LineCharCount = 0;
 				short TimeCharCount = 0;
 
-				_client.DefaultRequestHeaders.Accept.Add(
-					new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json")
-				);
-				_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.21.0");
+				EnsureJsonHeaders();
 
 				HttpResponseMessage response;
 				try
@@ -178,15 +191,17 @@ namespace DDepartures
 
 				LastSuccessfulArgs = args;
 
-				string json;
+				JsonDocument doc;
 				try
 				{
-					json = await response.Content.ReadAsStringAsync();
-					if (string.IsNullOrWhiteSpace(json))
+					using var json = await response.Content.ReadAsStreamAsync();
+					using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+					doc = await JsonDocument.ParseAsync(json, cancellationToken: cts.Token);
+					if (string.IsNullOrWhiteSpace(doc.ToString()))
 					{
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
-						DepItems = new ObservableCollection<List<string>>();
+						DepItems = [];
 						_client.DefaultRequestHeaders.Clear();
 						return LastStatus;
 					}
@@ -195,27 +210,38 @@ namespace DDepartures
 				{
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
-					DepItems = new ObservableCollection<List<string>>();
+					DepItems = [];
 					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
 				try
 				{
-					var deserialized = JsonSerializer.Deserialize<ObservableCollection<List<string>>>(
-						json,
-						_serializerOptions
-					);
+					var raw = JsonSerializer.Deserialize<ObservableCollection<List<string>>>(doc, _serializerOptions);
 
-					if (deserialized == null || deserialized.Count == 0)
+					if (raw == null || raw.Count == 0)
 					{
 						StatusResponse = "No departures found for this station";
-						DepItems = new ObservableCollection<List<string>>();
-						_client.DefaultRequestHeaders.Clear();
+						DepItems = [];
 						return LastStatus;
 					}
 
-					DepItems = deserialized;
+					var parsed = new ObservableCollection<DepartureRow>();
+
+					foreach (var row in raw)
+					{
+						if (row == null || row.Count < 3)
+							continue;
+
+						parsed.Add(new DepartureRow
+						{
+							Line = row[0]?.Trim() ?? "",
+							Destination = row[1]?.Trim() ?? "",
+							Time = row[2]?.Trim() ?? ""
+						});
+					}
+
+					DepItems = parsed;
 
 					// Trim to max
 					if (DepItems.Count > MAX_DEPARTURES)
@@ -227,7 +253,7 @@ namespace DDepartures
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
-					DepItems = new ObservableCollection<List<string>>();
+					DepItems = [];
 					LastStatus = 500;
 					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
@@ -240,24 +266,21 @@ namespace DDepartures
 					{
 						foreach (var item in DepItems)
 						{
-							if (item == null || item.Count == 0)
+							if (item == null)
 								continue;
-
-							if (item.Count != 3)
-								item[1] += " - ERROR";
-							if (item[2] == "")
-								item[2] = "0";
-							if (item[0].Length > LineCharCount)
-								LineCharCount = (short)item[0].Length;
-							if (item[2].Length > TimeCharCount)
-								TimeCharCount = (short)item[2].Length;
+							if (item.Time == "")
+								item.Time = "0";
+							if (item.Line.Length > LineCharCount)
+								LineCharCount = (short)item.Line.Length;
+							if (item.Time.Length > TimeCharCount)
+								TimeCharCount = (short)item.Time.Length;
 						}
 						foreach (var item in DepItems)
 						{
-							if (item != null && item.Count > 0)
+							if (item != null)
 							{
-								item[0] = item[0].PadLeft(LineCharCount);
-								item[2] = item[2].PadLeft(TimeCharCount);
+								item.Line = item.Line.PadLeft(LineCharCount);
+								item.Time = item.Time.PadLeft(TimeCharCount);
 							}
 						}
 					}
@@ -274,7 +297,7 @@ namespace DDepartures
 			catch (Exception ex)
 			{
 				StatusResponse = $"Unexpected error: {ex.Message}";
-				DepItems = new ObservableCollection<List<string>>();
+				DepItems = [];
 				LastStatus = 500;
 				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;
@@ -293,10 +316,7 @@ namespace DDepartures
 					return LastStatus;
 				}
 
-				_client.DefaultRequestHeaders.Accept.Add(
-					new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json")
-				);
-				_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.21.0");
+				EnsureJsonHeaders();
 
 				HttpResponseMessage response;
 				try
@@ -375,12 +395,14 @@ namespace DDepartures
 
 				try
 				{
-					using (var doc = JsonDocument.Parse(json))
+					using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+					using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+					using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cts.Token);
 					{
 						if (!doc.RootElement.TryGetProperty("Points", out var pointsElement) || pointsElement.ValueKind != JsonValueKind.Array)
 						{
 							StatusResponse = "No points found in response";
-							PointResults = new ObservableCollection<PointResult>();
+							PointResults = [];
 							_client.DefaultRequestHeaders.Clear();
 							return LastStatus;
 						}
@@ -429,7 +451,7 @@ namespace DDepartures
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
-					PointResults = new ObservableCollection<PointResult>();
+					PointResults = [];
 					LastStatus = 500;
 					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
@@ -437,7 +459,7 @@ namespace DDepartures
 				catch (Exception ex)
 				{
 					StatusResponse = $"Error parsing points: {ex.Message}";
-					PointResults = new ObservableCollection<PointResult>();
+					PointResults = [];
 					LastStatus = 500;
 					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
@@ -449,7 +471,7 @@ namespace DDepartures
 			catch (Exception ex)
 			{
 				StatusResponse = $"Unexpected error: {ex.Message}";
-				PointResults = new ObservableCollection<PointResult>();
+				PointResults = [];
 				LastStatus = 500;
 				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;

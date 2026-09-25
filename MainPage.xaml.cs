@@ -1,72 +1,77 @@
 ﻿using System.Windows.Input;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DDepartures
 {
 	public partial class MainPage : ContentPage, IDisposable
 	{
-		readonly RestService svc;
-		bool disposed;
-		string CurrentStop;
+		private readonly RestService svc;
+		private readonly Command _refreshCommand;
+		private CancellationTokenSource? _typingCts;
+		private bool disposed;
+
+		// This is only for a selected stop coming from PointFinder.
+		// It is cleared as soon as the user edits the text box again.
+		private string CurrentStop = string.Empty;
 
 		public MainPage()
 		{
 			InitializeComponent();
 
-			// single RestService instance used by XAML bindings and code
 			svc = new RestService();
+			BindingContext = svc;
 
-			// set page BindingContext so XAML bindings use the same instance
-			this.BindingContext = svc;
-			CurrentStop = string.Empty;
-
-			// Ensure both views start hidden (XAML already sets IsVisible="False")
 			RefView.IsVisible = false;
 			PointFinderView.IsVisible = false;
 
-			// Wire up selection handler for PointFinder results
 			PointFinderView.SelectionChanged += OnPointFinderSelectionChanged;
-
-			// Wire up buttons (if not already wired in XAML)
 			FindBtn.Clicked += OnFindClicked;
 			SearchBtn.Clicked += OnSearchClicked;
+
+			_refreshCommand = new Command(() => _ = SearchDeparturesAsync(manual: true));
 		}
 
-		public async void OnSearchClicked(object? sender, EventArgs e)
+		public ICommand RefreshCommand => _refreshCommand;
+
+		private void CancelTypingDebounce()
 		{
+			var cts = Interlocked.Exchange(ref _typingCts, null);
+			if (cts == null)
+				return;
+
+			try { cts.Cancel(); } catch { }
+			cts.Dispose();
+		}
+
+		private string GetTypedQuery() => SearchEntry.Text?.Trim() ?? string.Empty;
+
+		private string GetDepartureQuery()
+			=> string.IsNullOrWhiteSpace(CurrentStop) ? GetTypedQuery() : CurrentStop.Trim();
+
+		private async Task SearchDeparturesAsync(bool manual)
+		{
+			var query = GetDepartureQuery();
+			if (string.IsNullOrWhiteSpace(query))
+			{
+				svc.StatusResponse = "Enter valid ID";
+				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
+				ShowDeparturesView(false);
+				return;
+			}
+
+			if (manual)
+				CancelTypingDebounce();
+
 			try
 			{
-				if (string.IsNullOrWhiteSpace(CurrentStop))
-				{
-					// StatusResponse is bound to StatusLabel; update service property
-					svc.StatusResponse = "Enter valid ID";
-					// color still controlled here
-					StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
-					ShowDeparturesView(false);
-					return;
-				}
-
-				// UI state
 				SearchBtn.IsEnabled = false;
 				SearchEntry.IsEnabled = false;
 
-				// Use service-bound DeparturesRefreshing so RefreshView shows spinner
 				svc.DeparturesRefreshing = true;
-
-				StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
 				svc.StatusResponse = "Working...";
-				SemanticScreenReader.Announce("Searching for departures...");
+				StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
 
-				// Perform request
-				var status = await svc.RefreshDataAsync(SearchEntry.Text.Trim());
+				var status = await svc.RefreshDataAsync(query);
 
-				// Restore UI
-				svc.DeparturesRefreshing = false;
-				SearchEntry.IsEnabled = true;
-				SearchBtn.IsEnabled = true;
-
-				// StatusResponse is already set by service; adjust color and view
 				if (status != (int)System.Net.HttpStatusCode.OK)
 				{
 					StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
@@ -80,38 +85,40 @@ namespace DDepartures
 			}
 			catch (Exception ex)
 			{
-				svc.DeparturesRefreshing = false;
 				svc.StatusResponse = $"Search error: {ex.Message}";
 				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
 				ShowDeparturesView(false);
 			}
+			finally
+			{
+				svc.DeparturesRefreshing = false;
+				SearchEntry.IsEnabled = true;
+				SearchBtn.IsEnabled = true;
+			}
 		}
 
-		public async void OnFindClicked(object? sender, EventArgs e)
+		private async Task FindStopsAsync(string query, bool manual)
 		{
+			query = query?.Trim() ?? string.Empty;
+			if (string.IsNullOrWhiteSpace(query))
+			{
+				svc.StatusResponse = "Enter search text for Find";
+				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
+				ShowPointFinderView(false);
+				return;
+			}
+
+			if (manual)
+				CancelTypingDebounce();
+
 			try
 			{
-				var query = CurrentStop?.Trim() ?? string.Empty;
-				if (string.IsNullOrWhiteSpace(query))
-				{
-					svc.StatusResponse = "Enter search text for Find";
-					StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
-					ShowPointFinderView(false);
-					return;
-				}
-
-				// UI state
 				FindBtn.IsEnabled = false;
-
 				svc.PointFinderRefreshing = true;
 				svc.StatusResponse = "Searching...";
-
-				SemanticScreenReader.Announce("Searching for stops...");
+				StatusLabel.TextColor = (Color)Application.Current.Resources["Warning"];
 
 				var status = await svc.QueryPointFinderAsync(query, limit: 50, stopsOnly: true);
-
-				svc.PointFinderRefreshing = false;
-				FindBtn.IsEnabled = true;
 
 				if (status != (int)System.Net.HttpStatusCode.OK || svc.PointResults == null || svc.PointResults.Count == 0)
 				{
@@ -123,16 +130,26 @@ namespace DDepartures
 					StatusLabel.TextColor = (Color)Application.Current.Resources["Success"];
 					ShowPointFinderView(true);
 				}
-				SearchEntry.Focus();
 			}
 			catch (Exception ex)
 			{
-				svc.PointFinderRefreshing = false;
 				svc.StatusResponse = $"Find error: {ex.Message}";
 				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
 				ShowPointFinderView(false);
 			}
+			finally
+			{
+				svc.PointFinderRefreshing = false;
+				FindBtn.IsEnabled = true;
+				SearchEntry.Focus();
+			}
 		}
+
+		public async void OnSearchClicked(object? sender, EventArgs e)
+			=> await SearchDeparturesAsync(manual: true);
+
+		public async void OnFindClicked(object? sender, EventArgs e)
+			=> await FindStopsAsync(GetTypedQuery(), manual: true);
 
 		private async void OnPointFinderSelectionChanged(object? sender, SelectionChangedEventArgs e)
 		{
@@ -141,21 +158,14 @@ namespace DDepartures
 				if (e.CurrentSelection == null || e.CurrentSelection.Count == 0)
 					return;
 
-				var selected = e.CurrentSelection[0] as PointResult;
-				if (selected == null)
+				if (e.CurrentSelection[0] is not PointResult selected)
 					return;
 
 				CurrentStop = selected.Id;
-
-				// Clear selection
 				PointFinderView.SelectedItem = null;
-
-				// Hide PointFinder and show departures
 				ShowPointFinderView(false);
 
-				// Trigger departure search
-				await Task.Yield();
-				OnSearchClicked(null, EventArgs.Empty);
+				await SearchDeparturesAsync(manual: true);
 			}
 			catch (Exception ex)
 			{
@@ -169,7 +179,7 @@ namespace DDepartures
 			MainThread.BeginInvokeOnMainThread(() =>
 			{
 				RefView.IsVisible = show;
-				PointFinderView.IsVisible = !show && PointFinderView.IsVisible;
+				PointFinderView.IsVisible = false;
 			});
 		}
 
@@ -178,14 +188,13 @@ namespace DDepartures
 			MainThread.BeginInvokeOnMainThread(() =>
 			{
 				PointFinderView.IsVisible = show;
-				RefView.IsVisible = !show && RefView.IsVisible;
+				RefView.IsVisible = false;
 			});
 		}
 
 		public void OnUnfocused(object? sender, FocusEventArgs e)
 		{
-			SearchEntry.IsEnabled = false;
-			SearchEntry.IsEnabled = true;
+			// Keep existing behavior, but avoid pointless enable/disable churn.
 		}
 
 		public void OnFocused(object? sender, FocusEventArgs e)
@@ -194,18 +203,49 @@ namespace DDepartures
 			svc.StatusResponse = "Ready to go";
 		}
 
-		public ICommand RefreshCommand => new Command(() =>
+		private void OnTapped(object sender, TappedEventArgs e)
 		{
-			if (string.IsNullOrWhiteSpace(CurrentStop))
-			{
-				svc.StatusResponse = "Enter valid ID";
-				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
-				RefView.IsRefreshing = false;
-				ShowDeparturesView(false);
+			SearchEntry.Focus();
+		}
+
+		private async void OnTextChanged(object sender, TextChangedEventArgs e)
+		{
+			CurrentStop = string.Empty;
+			CancelTypingDebounce();
+
+			var text = e.NewTextValue?.Trim() ?? string.Empty;
+			if (text.Length <= 2)
 				return;
+
+			var cts = new CancellationTokenSource();
+			_typingCts = cts;
+
+			try
+			{
+				await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+
+				if (cts.IsCancellationRequested || !ReferenceEquals(_typingCts, cts))
+					return;
+
+				await FindStopsAsync(text, manual: false);
 			}
-			OnSearchClicked(null, new EventArgs());
-		});
+			catch (TaskCanceledException)
+			{
+			}
+			catch (Exception ex)
+			{
+				svc.StatusResponse = $"Input debounce error: {ex.Message}";
+				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
+			}
+			finally
+			{
+				if (ReferenceEquals(_typingCts, cts))
+				{
+					_typingCts = null;
+					cts.Dispose();
+				}
+			}
+		}
 
 		public void Dispose()
 		{
@@ -217,15 +257,10 @@ namespace DDepartures
 		{
 			if (disposed)
 				return;
+
 			if (disposing)
 			{
-				try
-				{
-					_typingCts?.Cancel();
-					_typingCts?.Dispose();
-					_typingCts = null;
-				}
-				catch { }
+				CancelTypingDebounce();
 
 				DepartureListView.ItemsSource = null;
 				PointFinderView.ItemsSource = null;
@@ -244,62 +279,6 @@ namespace DDepartures
 		~MainPage()
 		{
 			Dispose(false);
-		}
-
-		private void OnTapped(object sender, TappedEventArgs e)
-		{
-			SearchEntry.IsEnabled = false;
-			SearchEntry.IsEnabled = true;
-		}
-
-		private CancellationTokenSource? _typingCts;
-
-		private async void OnTextChanged(object sender, TextChangedEventArgs e)
-		{
-			// Cancel any pending debounce
-			try
-			{
-				_typingCts?.Cancel();
-				_typingCts?.Dispose();
-			}
-			catch { /* ignore */ }
-
-			// Create a new token source for this keystroke
-			_typingCts = new CancellationTokenSource();
-			var token = _typingCts.Token;
-
-			// Only start debounce when user typed more than 2 characters
-			if (SearchEntry.Text.Length <= 2) return;
-
-			try
-			{
-				// Wait 2 seconds; if cancelled by another keystroke, TaskCanceledException will be thrown
-				await Task.Delay(TimeSpan.FromSeconds(2), token);
-
-				// If not cancelled, invoke the Find action on the UI thread
-				if (!token.IsCancellationRequested)
-				{
-					MainThread.BeginInvokeOnMainThread(() =>
-					{
-						CurrentStop = SearchEntry.Text;
-						// Prevent reentrancy if Find is already running/disabled
-						if (FindBtn.IsEnabled)
-						{
-							OnFindClicked(SearchEntry, EventArgs.Empty);
-						}
-					});
-				}
-			}
-			catch (TaskCanceledException)
-			{
-				// expected when a new keystroke arrives; swallow silently
-			}
-			catch (Exception ex)
-			{
-				// Log or surface unexpected errors via StatusResponse
-				svc.StatusResponse = $"Input debounce error: {ex.Message}";
-				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
-			}
 		}
 	}
 }
