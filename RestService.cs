@@ -271,6 +271,8 @@ namespace DDepartures
 
 						// CancelReasons is the reliable cancellation signal - State alone isn't documented to carry it.
 						var isCancelled = d.CancelReasons is { Count: > 0 };
+						if (isCancelled)
+							timeText = "X" + timeText;
 
 						parsed.Add(new DepartureRow
 						{
@@ -370,7 +372,6 @@ namespace DDepartures
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -378,7 +379,6 @@ namespace DDepartures
 					StatusResponse = $"Network error: {ex.Message}";
 					LastStatus = 0;
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -386,7 +386,6 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -395,7 +394,6 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -405,7 +403,6 @@ namespace DDepartures
 				if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				{
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -418,7 +415,6 @@ namespace DDepartures
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						PointResults?.Clear();
-						_client.DefaultRequestHeaders.Clear();
 						return LastStatus;
 					}
 				}
@@ -427,7 +423,6 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
@@ -441,7 +436,6 @@ namespace DDepartures
 						{
 							StatusResponse = "No points found in response";
 							PointResults = [];
-							_client.DefaultRequestHeaders.Clear();
 							return LastStatus;
 						}
 
@@ -491,7 +485,6 @@ namespace DDepartures
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -499,11 +492,9 @@ namespace DDepartures
 					StatusResponse = $"Error parsing points: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
-					_client.DefaultRequestHeaders.Clear();
 					return LastStatus;
 				}
 
-				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -511,7 +502,6 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				PointResults = [];
 				LastStatus = 500;
-				_client.DefaultRequestHeaders.Clear();
 				return LastStatus;
 			}
 		}

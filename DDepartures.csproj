@@ -17,7 +17,7 @@
 	<ApplicationTitle>DDepartures</ApplicationTitle>
 	<ApplicationId>dev.Scharkenberg.DDepartures</ApplicationId>
 
-	<ApplicationDisplayVersion>0.2.2</ApplicationDisplayVersion>
+	<ApplicationDisplayVersion>0.3.0</ApplicationDisplayVersion>
 	<ApplicationVersion>1</ApplicationVersion>
 
 	<WindowsPackageType>MSIX</WindowsPackageType>
