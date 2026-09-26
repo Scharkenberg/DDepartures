@@ -14,8 +14,7 @@
 #if WINDOWS
 				Height = 600,
 				Width = 400,
-				MaximumHeight = 960,
-				MaximumWidth = 720,
+				MaximumWidth = 960,
 #endif
 				MinimumHeight = 320,
 				MinimumWidth = 320

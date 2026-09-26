@@ -16,11 +16,14 @@ namespace DDepartures
 			{
 				"Delayed" => "Warning",
 				"Cancelled" => "Error",
+				"Early" => "Info",
 				_ => null
 			};
 
 			if (key != null && resources.TryGetValue(key, out var color))
+			{
 				return color;
+			}
 
 			return null;
 		}

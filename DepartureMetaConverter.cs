@@ -3,7 +3,7 @@ using System.Globalization;
 namespace DDepartures
 {
 	// Combines Mot/Platform/Occupancy into a single compact line for the departure
-	// list, e.g. "Tram  ·  Pl. 3  ·  Standing only". Empty or uninformative parts
+	// list, e.g. "Tram  ·  P3  ·  Standing only". Empty or uninformative parts
 	// ("Unknown" occupancy, a blank platform) are dropped rather than shown as gaps.
 	public sealed class DepartureMetaConverter : IMultiValueConverter
 	{
@@ -29,18 +29,60 @@ namespace DDepartures
 			=> throw new NotSupportedException();
 
 		private static string? FormatMot(string? mot)
-			=> string.IsNullOrWhiteSpace(mot) ? null : mot;
+		{
+			if (string.IsNullOrWhiteSpace(mot))
+				return null;
+
+			return mot switch
+			{
+				"Tram"
+					=> "TRAM",
+
+				"CityBus" or
+				"Bus" or
+				"IntercityBus" or
+				"RegioBus" or
+				"PlusBus" or
+				"CitizenBus" or
+				"DemandBus" or
+				"SchoolBus" or
+				"ClockBus" or
+				"BusOnRequest"
+					=> "BUS",
+
+				"SuburbanRailway" or
+				"RapidTransit" or
+				"OverheadRailway"
+					=> "S/U",
+
+				"Train"
+					=> "TRAIN",
+
+				"Taxi" or
+				"HailedSharedTaxi"
+					=> "TAXI",
+
+				"Ferry"
+					=> "BOAT",
+
+				"Cableway" or
+				"Cablecar"
+					=> "CABLE",
+
+				_ => mot.Length <= 5 ? mot : "OTHER"
+			};
+		}
 
 		private static string? FormatPlatform(string? platform)
-			=> string.IsNullOrWhiteSpace(platform) ? null : $"P{platform}";
+			=> string.IsNullOrWhiteSpace(platform) ? null : $"{platform}";
 
 		private static string? FormatOccupancy(string? occupancy) => occupancy switch
 		{
-			"ManySeats" => "Seats available",
-			"StandingOnly" => "Standing only",
-			"Full" => "Full",
-			"Unknown" => "Unknown occupancy",
-			_ => null // missing or an unrecognized future value
+			"ManySeats" => "◐○",
+			"StandingOnly" => "◑●",
+			"Full" => "●●",
+			"Unknown" => "○○",
+			_ => null // missing or unrecognized future value
 		};
 	}
 }

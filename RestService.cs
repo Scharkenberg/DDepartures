@@ -53,7 +53,7 @@ namespace DDepartures
 				new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
 			_client.DefaultRequestHeaders.UserAgent.Clear();
-			_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.21.0");
+			_client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/8.22.0");
 
 			_headersInitialized = true;
 		}
@@ -129,7 +129,12 @@ namespace DDepartures
 		// Uses the VVO WebAPI departure monitor (POST /dm) - the same backend as the
 		// official DVB mobil app. Gives real-time state, platform and occupancy that
 		// the old Widget API (Abfahrten.do) doesn't expose.
-		public async Task<int> RefreshDataAsync(string args)
+		//
+		// allowShortcutFallback: if the given args isn't a plain numeric stop ID and /dm
+		// rejects it, try resolving it as a stop shortcut (e.g. "PLA" -> Postplatz) via
+		// PointFinder and retry once with the resolved ID. Set to false on the retry
+		// itself to avoid looping.
+		public async Task<int> RefreshDataAsync(string args, bool allowShortcutFallback = true)
 		{
 			try
 			{
@@ -168,6 +173,7 @@ namespace DDepartures
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					DepItems?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -175,6 +181,7 @@ namespace DDepartures
 					StatusResponse = $"Network error: {ex.Message}";
 					LastStatus = 0;
 					DepItems?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -182,6 +189,7 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.Message}";
 					LastStatus = 500;
 					DepItems?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -190,17 +198,32 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					DepItems?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
 				LastStatus = (int)response.StatusCode;
-				StatusResponse = LastStatus + " - " + response.StatusCode.ToString();
 
 				if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				{
+					if (allowShortcutFallback && !LooksLikeNumericStopId(args))
+					{
+						StatusResponse = "Resolving stop code...";
+						var resolvedId = await TryResolveStopShortcutAsync(args);
+						if (resolvedId != null)
+						{
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+							return await RefreshDataAsync(resolvedId, allowShortcutFallback: false);
+						}
+					}
+
+					StatusResponse = LastStatus + " - " + response.StatusCode.ToString();
 					DepItems?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
+
+				StatusResponse = LastStatus + " - " + response.StatusCode.ToString();
 
 				LastSuccessfulArgs = args;
 
@@ -216,6 +239,7 @@ namespace DDepartures
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						DepItems = [];
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 				}
@@ -224,6 +248,7 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					DepItems = [];
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -231,6 +256,19 @@ namespace DDepartures
 				// in the body (e.g. an unknown stop ID) - check Status.Code, not just the HTTP code.
 				if (!string.Equals(doc.Status?.Code, "Ok", StringComparison.OrdinalIgnoreCase))
 				{
+					if (allowShortcutFallback
+						&& !LooksLikeNumericStopId(args)
+						&& (doc.Status?.Code == "InvalidRequest" || doc.Status?.Code == "NoData"))
+					{
+						StatusResponse = "Resolving stop code...";
+						var resolvedId = await TryResolveStopShortcutAsync(args);
+						if (resolvedId != null)
+						{
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+							return await RefreshDataAsync(resolvedId, allowShortcutFallback: false);
+						}
+					}
+
 					StatusResponse = doc.Status?.Code switch
 					{
 						"NoData" => "No departures found for this station",
@@ -238,6 +276,7 @@ namespace DDepartures
 						_ => $"Server reported: {doc.Status?.Code ?? "unknown status"}"
 					};
 					DepItems = [];
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -249,6 +288,7 @@ namespace DDepartures
 					{
 						StatusResponse = "No departures found for this station";
 						DepItems = [];
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 
@@ -262,24 +302,46 @@ namespace DDepartures
 
 						// Prefer RealTime (accounts for delay); fall back to ScheduledTime.
 						var reference = d.RealTime ?? d.ScheduledTime;
-						var timeText = "?";
+						String timeText = "?";
+						String destination = d.Direction?.Trim() ?? "";
 						if (reference.HasValue)
 						{
 							var minutes = (int)Math.Round((reference.Value - now).TotalMinutes, MidpointRounding.AwayFromZero);
 							timeText = Math.Max(minutes, 0).ToString(CultureInfo.InvariantCulture);
+
+							// Delay/early suffix - only when both timestamps are present, so an
+							// "InTime" departure with no live tracking shows a plain number, not "+0".
+							if (d.RealTime.HasValue && d.ScheduledTime.HasValue)
+							{
+								var delayMinutes = (int)Math.Round(
+									(d.RealTime.Value - d.ScheduledTime.Value).TotalMinutes,
+									MidpointRounding.AwayFromZero);
+
+								if (delayMinutes != 0)
+								{
+									String sign = delayMinutes > 0 ? "+" : "-";
+									if (delayMinutes < 0) d.State = "Early";
+									destination = "(" + sign + Math.Abs(delayMinutes).ToString(CultureInfo.InvariantCulture) + ") " + destination;
+								}
+							}
 						}
 
 						// CancelReasons is the reliable cancellation signal - State alone isn't documented to carry it.
 						var isCancelled = d.CancelReasons is { Count: > 0 };
 						if (isCancelled)
-							timeText = "X" + timeText;
+							timeText = "X" + timeText + "X";
 
 						parsed.Add(new DepartureRow
 						{
 							Line = d.LineName?.Trim() ?? "",
-							Destination = d.Direction?.Trim() ?? "",
+							Destination = destination,
 							Time = timeText,
-							Platform = d.Platform?.Name?.Trim() ?? "",
+							Platform = d.Platform?.Name?.Trim() is string platform && !string.IsNullOrEmpty(platform) ? d.Platform.Type?.Trim() switch
+							{
+								"Platform" => $"Pl. {platform}",
+								"Railtrack" => $"Tr. {platform}",
+								_ => platform
+							} : "",
 							Mot = d.Mot ?? "",
 							State = isCancelled ? "Cancelled" : (d.State ?? "Unknown"),
 							Occupancy = d.Occupancy ?? "Unknown"
@@ -294,12 +356,14 @@ namespace DDepartures
 						while (DepItems.Count > MAX_DEPARTURES)
 							DepItems.RemoveAt(DepItems.Count - 1);
 					}
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					DepItems = [];
 					LastStatus = 500;
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -319,20 +383,18 @@ namespace DDepartures
 						}
 						foreach (var item in DepItems)
 						{
-							if (item != null)
-							{
-								item.Line = item.Line.PadLeft(LineCharCount);
-								item.Time = item.Time.PadLeft(TimeCharCount);
-							}
+							item?.Line = item.Line.PadLeft(LineCharCount > 8 ? 8 : LineCharCount);
+							item?.Time = item.Time.PadLeft(TimeCharCount);
 						}
 					}
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (Exception ex)
 				{
 					StatusResponse = $"Error formatting departures: {ex.Message}";
 					LastStatus = 500;
 				}
-
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -340,7 +402,57 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				DepItems = [];
 				LastStatus = 500;
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
+			}
+		}
+
+		private static bool LooksLikeNumericStopId(string value)
+			=> !string.IsNullOrEmpty(value) && value.All(char.IsDigit);
+
+		// Resolves a stop shortcut (e.g. "POP" for Postplatz) to a numeric stop ID via
+		// PointFinder's stopShortcuts flag - the WebAPI equivalent of what the old Widget
+		// API's `hst` parameter used to resolve transparently server-side. Best-effort:
+		// any failure here just means the original error is reported instead.
+		private async Task<string?> TryResolveStopShortcutAsync(string query)
+		{
+			try
+			{
+				using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+				var url = $"https://webapi.vvo-online.de/tr/pointfinder?query={Uri.EscapeDataString(query)}" +
+					"&format=json&limit=1&stopsOnly=true&regionalOnly=false&stopShortcuts=true";
+
+				using var response = await _client.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseContentRead, cts.Token);
+				if (response.StatusCode != System.Net.HttpStatusCode.OK)
+					return null;
+
+				using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+				using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cts.Token);
+
+				if (!doc.RootElement.TryGetProperty("Points", out var points) || points.ValueKind != JsonValueKind.Array)
+					return null;
+
+				foreach (var p in points.EnumerateArray())
+				{
+					if (p.ValueKind != JsonValueKind.String)
+						continue;
+
+					// Point strings are pipe-delimited; index 0 is the ID. Only a plain
+					// numeric ID is a real stop - street/POI/coordinate results use other
+					// ID shapes (e.g. "streetID:...") and can't be used as /dm's stopid.
+					var id = (p.GetString() ?? "").Split('|').ElementAtOrDefault(0);
+					if (!string.IsNullOrEmpty(id) && LooksLikeNumericStopId(id))
+						return id;
+				}
+
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				return null;
+			}
+			catch
+			{
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				return null;
 			}
 		}
 
@@ -353,6 +465,7 @@ namespace DDepartures
 				{
 					StatusResponse = "Error: No query provided";
 					LastStatus = 400;
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -372,6 +485,7 @@ namespace DDepartures
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -379,6 +493,7 @@ namespace DDepartures
 					StatusResponse = $"Network error: {ex.Message}";
 					LastStatus = 0;
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -386,6 +501,7 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -394,6 +510,7 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -403,6 +520,7 @@ namespace DDepartures
 				if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				{
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -415,6 +533,7 @@ namespace DDepartures
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						PointResults?.Clear();
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 				}
@@ -423,6 +542,7 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -436,6 +556,7 @@ namespace DDepartures
 						{
 							StatusResponse = "No points found in response";
 							PointResults = [];
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 							return LastStatus;
 						}
 
@@ -479,12 +600,14 @@ namespace DDepartures
 
 						LastSuccessfulArgs = query;
 					}
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -492,9 +615,11 @@ namespace DDepartures
 					StatusResponse = $"Error parsing points: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -502,6 +627,7 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				PointResults = [];
 				LastStatus = 500;
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 		}
@@ -529,6 +655,7 @@ namespace DDepartures
 				StatusResponse = $"Periodic refresh error: {ex.Message}";
 				DeparturesRefreshing = false;
 			}
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		// IDisposable
@@ -552,6 +679,7 @@ namespace DDepartures
 				}
 			}
 
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 			_disposed = true;
 		}
 

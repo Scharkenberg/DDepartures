@@ -1,11 +1,8 @@
-﻿using System.Windows.Input;
-
-namespace DDepartures
+﻿namespace DDepartures
 {
 	public partial class MainPage : ContentPage, IDisposable
 	{
 		private readonly RestService svc;
-		private readonly Command _refreshCommand;
 		private CancellationTokenSource? _typingCts;
 		private bool disposed;
 
@@ -26,11 +23,11 @@ namespace DDepartures
 			PointFinderView.SelectionChanged += OnPointFinderSelectionChanged;
 			FindBtn.Clicked += OnFindClicked;
 			SearchBtn.Clicked += OnSearchClicked;
-
-			_refreshCommand = new Command(() => _ = SearchDeparturesAsync(manual: true));
+			RefView.Refreshing += OnRefreshViewRefreshing;
 		}
 
-		public ICommand RefreshCommand => _refreshCommand;
+		private async void OnRefreshViewRefreshing(object? sender, EventArgs e)
+			=> await SearchDeparturesAsync(manual: true);
 
 		private void CancelTypingDebounce()
 		{
@@ -55,6 +52,7 @@ namespace DDepartures
 				svc.StatusResponse = "Enter valid ID";
 				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
 				ShowDeparturesView(false);
+				MainThread.BeginInvokeOnMainThread(() => RefView.IsRefreshing = false);
 				return;
 			}
 
@@ -94,7 +92,9 @@ namespace DDepartures
 				svc.DeparturesRefreshing = false;
 				SearchEntry.IsEnabled = true;
 				SearchBtn.IsEnabled = true;
+				MainThread.BeginInvokeOnMainThread(() => RefView.IsRefreshing = false);
 			}
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		private async Task FindStopsAsync(string query, bool manual)
@@ -143,6 +143,7 @@ namespace DDepartures
 				FindBtn.IsEnabled = true;
 				SearchEntry.Focus();
 			}
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		public async void OnSearchClicked(object? sender, EventArgs e)
@@ -172,6 +173,7 @@ namespace DDepartures
 				svc.StatusResponse = $"Selection error: {ex.Message}";
 				StatusLabel.TextColor = (Color)Application.Current.Resources["Error"];
 			}
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		void ShowDeparturesView(bool show)
@@ -222,7 +224,7 @@ namespace DDepartures
 
 			try
 			{
-				await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+				await Task.Delay(TimeSpan.FromSeconds(1), cts.Token);
 
 				if (cts.IsCancellationRequested || !ReferenceEquals(_typingCts, cts))
 					return;
@@ -245,6 +247,7 @@ namespace DDepartures
 					cts.Dispose();
 				}
 			}
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		public void Dispose()
@@ -268,12 +271,14 @@ namespace DDepartures
 				PointFinderView.SelectionChanged -= OnPointFinderSelectionChanged;
 				FindBtn.Clicked -= OnFindClicked;
 				SearchBtn.Clicked -= OnSearchClicked;
+				RefView.Refreshing -= OnRefreshViewRefreshing;
 
 				if (svc is IDisposable d)
 					d.Dispose();
 			}
 
 			disposed = true;
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
 		~MainPage()

@@ -36,8 +36,7 @@
 		<RefreshView
 			x:Name="RefView"
 			Grid.Row="1"
-			Padding="16,0,16,0"
-			Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=RefreshCommand}"
+			Padding="12,0,12,0"
 			Focused="OnUnfocused"
 			IsRefreshing="{Binding DeparturesRefreshing, Mode=TwoWay}"
 			IsVisible="False"
@@ -73,36 +72,49 @@
 								                                  Dark={StaticResource BackgroundDark}}" />
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="0"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Background},
 								                                  Dark={StaticResource BackgroundDark}}" />
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="1"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Primary},
 								                                  Dark={StaticResource PrimaryDark}}" />
-							<Label
-								x:Name="LineLabel"
+							<ScrollView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="2"
-								Padding="0"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Primary},
 								                                  Dark={StaticResource PrimaryDark}}"
-								FontAttributes="Bold"
-								FontFamily="CascadiaCode"
-								FontSize="18"
-								HorizontalOptions="Center"
-								Text="{Binding Line}"
-								TextColor="{AppThemeBinding Light={StaticResource TextPrimary},
-								                            Dark={StaticResource Black}}"
-								VerticalTextAlignment="Center" />
+								HorizontalScrollBarVisibility="Never"
+								MaximumWidthRequest="84"
+								Orientation="Horizontal"
+								VerticalOptions="Fill">
+								<Label
+									x:Name="LineLabel"
+									Padding="0"
+									BackgroundColor="{AppThemeBinding Light={StaticResource Primary},
+									                                  Dark={StaticResource PrimaryDark}}"
+									FontAttributes="Bold"
+									FontFamily="CascadiaCode"
+									FontSize="18"
+									Text="{Binding Line}"
+									TextColor="{AppThemeBinding Light={StaticResource TextPrimary},
+									                            Dark={StaticResource Black}}"
+									VerticalOptions="Center"
+									VerticalTextAlignment="Center" />
+							</ScrollView>
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="3"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Primary},
 								                                  Dark={StaticResource PrimaryDark}}" />
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="4"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Background},
 								                                  Dark={StaticResource BackgroundDark}}" />
@@ -122,17 +134,19 @@
 							</ScrollView>
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="6"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Background},
 								                                  Dark={StaticResource BackgroundDark}}" />
 							<Label
 								x:Name="TimeLabel"
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="7"
 								Padding="0,2,0,0"
 								CharacterSpacing="2"
 								FontFamily="London"
-								FontSize="16"
+								FontSize="20"
 								HorizontalOptions="Center"
 								Text="{Binding Time}"
 								TextColor="{Binding State, Converter={StaticResource StateToColorConverter}}"
@@ -140,10 +154,11 @@
 							<Label
 								x:Name="ApostropheLabel"
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="8"
 								Padding="2,2,0,0"
 								FontFamily="London"
-								FontSize="16"
+								FontSize="20"
 								HorizontalOptions="End"
 								Text="'"
 								TextColor="{AppThemeBinding Light={StaticResource Primary},
@@ -151,35 +166,40 @@
 								VerticalTextAlignment="Center" />
 							<BoxView
 								Grid.Row="1"
+								Grid.RowSpan="2"
 								Grid.Column="9"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Background},
 								                                  Dark={StaticResource BackgroundDark}}" />
 							<BoxView
 								Grid.Row="2"
-								Grid.ColumnSpan="10"
+								Grid.Column="5"
 								BackgroundColor="{AppThemeBinding Light={StaticResource Background},
 								                                  Dark={StaticResource BackgroundDark}}" />
-							<Label
-								x:Name="MetaLabel"
+							<ScrollView
 								Grid.Row="2"
-								Grid.Column="2"
-								Grid.ColumnSpan="6"
-								Padding="0,0,0,2"
-								FontFamily="CascadiaCode"
-								FontSize="12"
-								LineBreakMode="TailTruncation"
-								Opacity="0.8"
-								TextColor="{AppThemeBinding Light={StaticResource TextPrimary},
-								                            Dark={StaticResource TextPrimaryDark}}"
-								VerticalTextAlignment="Center">
-								<Label.Text>
-									<MultiBinding Converter="{StaticResource DepartureMetaConverter}">
-										<Binding Path="Mot" />
-										<Binding Path="Platform" />
-										<Binding Path="Occupancy" />
-									</MultiBinding>
-								</Label.Text>
-							</Label>
+								Grid.Column="5"
+								HorizontalScrollBarVisibility="Never"
+								Orientation="Horizontal">
+								<Label
+									x:Name="MetaLabel"
+									Padding="0,0,0,0"
+									FontFamily="CascadiaCode"
+									FontSize="12"
+									LineBreakMode="NoWrap"
+									Opacity="0.8"
+									TextColor="{AppThemeBinding Light={StaticResource TextPrimary},
+									                            Dark={StaticResource TextPrimaryDark}}"
+									VerticalTextAlignment="Center">
+									<Label.Text>
+										<MultiBinding Converter="{StaticResource DepartureMetaConverter}">
+											<Binding Path="Mot" />
+											<Binding Path="Platform" />
+											<Binding Path="Occupancy" />
+										</MultiBinding>
+									</Label.Text>
+								</Label>
+							</ScrollView>
+
 							<BoxView
 								Grid.Row="3"
 								Grid.ColumnSpan="10"
