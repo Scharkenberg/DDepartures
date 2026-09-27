@@ -26,6 +26,11 @@ public class DepartureWidgetConfigurationActivity : Activity
 	private string? _selectedStopId;
 	private string? _selectedStopName;
 
+	private static readonly int[] IntervalMinutesOptions = [30, 60, 120, 180, 240, 600];
+	private static readonly string[] IntervalLabels =
+		["30 min", "1 hour", "2 hours", "3 hours", "4 hours", "10 hours"];
+	private global::Android.Widget.Spinner? _intervalSpinner;
+
 	// The exact set of results the currently-visible adapter was built from - the
 	// tap handler resolves against this, never against the live _service.PointResults,
 	// so a race with an overlapping search can't make a tap resolve to the wrong stop.
@@ -33,26 +38,24 @@ public class DepartureWidgetConfigurationActivity : Activity
 
 	private CancellationTokenSource? _searchDebounceCts;
 
+	private WidgetSettings _existingSettings = WidgetSettings.Empty;
+
+	private global::Android.Widget.TextView? _resultsStatus;
+
+	private void SetStatus(string text)
+	{
+		_resultsStatus!.Text = text;
+		_resultsStatus.Visibility = ViewStates.Visible;
+	}
 
 	protected override void OnCreate(Bundle? savedInstanceState)
 	{
 		base.OnCreate(savedInstanceState);
-
-		_widgetId =
-			Intent?.GetIntExtra(
-				AppWidgetManager.ExtraAppwidgetId,
-				-1)
-			?? -1;
-
-		if (_widgetId == -1)
-		{
-			SetResult(Result.Canceled);
-			Finish();
-			return;
-		}
+		_widgetId = Intent?.GetIntExtra(AppWidgetManager.ExtraAppwidgetId, -1) ?? -1;
+		if (_widgetId == -1) { SetResult(Result.Canceled); Finish(); return; }
 
 		_service = new RestService();
-
+		_existingSettings = WidgetStorage.Load(this, _widgetId);   // add this line
 		BuildUi();
 	}
 
@@ -96,6 +99,12 @@ public class DepartureWidgetConfigurationActivity : Activity
 				global::Android.Views.ViewGroup.LayoutParams.MatchParent,
 				global::Android.Views.ViewGroup.LayoutParams.WrapContent));
 
+		if (!string.IsNullOrWhiteSpace(_existingSettings.StopId))
+		{
+			_selectedStopId = _existingSettings.StopId;
+			_selectedStopName = _existingSettings.StopName;
+			_searchBox.Text = _existingSettings.StopName;
+		}
 
 		_resultsList = new global::Android.Widget.ListView(this)
 		{
@@ -121,13 +130,38 @@ public class DepartureWidgetConfigurationActivity : Activity
 			}
 		};
 
-
 		layout.AddView(
 			_resultsList,
 			new global::Android.Widget.LinearLayout.LayoutParams(
 				global::Android.Views.ViewGroup.LayoutParams.MatchParent,
 				0,
 				1));
+
+		_resultsStatus = new global::Android.Widget.TextView(this) { Visibility = ViewStates.Gone };
+		layout.AddView(_resultsStatus);
+
+		var intervalLabel = new global::Android.Widget.TextView(this)
+		{
+			Text = "Update frequency",
+			TextSize = 16
+		};
+		layout.AddView(intervalLabel);
+
+		_intervalSpinner = new global::Android.Widget.Spinner(this);
+		var intervalAdapter = new global::Android.Widget.ArrayAdapter<string>(
+			this,
+			global::Android.Resource.Layout.SimpleSpinnerItem,
+			IntervalLabels);
+		intervalAdapter.SetDropDownViewResource(global::Android.Resource.Layout.SimpleSpinnerDropDownItem);
+		_intervalSpinner.Adapter = intervalAdapter;
+		var savedIndex = Array.IndexOf(IntervalMinutesOptions, _existingSettings.IntervalMinutes);
+		_intervalSpinner.SetSelection(savedIndex >= 0 ? savedIndex : 1);
+
+		layout.AddView(
+			_intervalSpinner,
+			new global::Android.Widget.LinearLayout.LayoutParams(
+				global::Android.Views.ViewGroup.LayoutParams.MatchParent,
+				global::Android.Views.ViewGroup.LayoutParams.WrapContent));
 
 		var buttonRow = new global::Android.Widget.LinearLayout(this)
 		{
@@ -139,7 +173,7 @@ public class DepartureWidgetConfigurationActivity : Activity
 		_doneButton = new global::Android.Widget.Button(this)
 		{
 			Text = "Done",
-			Enabled = false
+			Enabled = !string.IsNullOrWhiteSpace(_selectedStopId)
 		};
 
 		var cancelButton = new global::Android.Widget.Button(this)
@@ -152,22 +186,16 @@ public class DepartureWidgetConfigurationActivity : Activity
 			if (string.IsNullOrWhiteSpace(_selectedStopId))
 				return;
 
-			SaveWidget(
-				_selectedStopId,
-				_selectedStopName ?? "");
+			var intervalIndex = _intervalSpinner?.SelectedItemPosition ?? 2;
+			var intervalMinutes = IntervalMinutesOptions[intervalIndex];
+
+			SaveWidget(_selectedStopId, _selectedStopName ?? "", intervalMinutes);
 
 			var resultIntent = new Intent();
-			resultIntent.PutExtra(
-				AppWidgetManager.ExtraAppwidgetId,
-				_widgetId);
+			resultIntent.PutExtra(AppWidgetManager.ExtraAppwidgetId, _widgetId);
+			SetResult(Result.Ok, resultIntent);
 
-			SetResult(
-				Result.Ok,
-				resultIntent);
-
-			await DepartureWidgetUpdater.UpdateAsync(
-				this,
-				_widgetId);
+			await DepartureWidgetUpdater.UpdateAsync(this, _widgetId);
 
 			Finish();
 		};
@@ -268,65 +296,57 @@ public class DepartureWidgetConfigurationActivity : Activity
 
 	private async Task SearchAsync(CancellationToken cancellationToken)
 	{
-		if (_service == null ||
-			_searchBox == null ||
-			_resultsList == null)
-			return;
+		if (_service == null || _searchBox == null || _resultsList == null) return;
 
-
-		var query =
-			_searchBox.Text?.Trim();
-
-
+		var query = _searchBox.Text?.Trim();
 		if (string.IsNullOrWhiteSpace(query))
 		{
 			_resultsList.Adapter = null;
 			_currentResults = new List<PointResult>();
+			_resultsStatus!.Visibility = ViewStates.Gone;
 			return;
 		}
 
-
-		await _service.QueryPointFinderAsync(
-			query,
-			limit: 15,
-			stopsOnly: true);
-
-		// A newer keystroke already started a later search while this one was
-		// in flight - let that one's result stand instead of overwriting it.
-		if (cancellationToken.IsCancellationRequested)
+		try
+		{
+			await _service.QueryPointFinderAsync(query, limit: 15, stopsOnly: true);
+		}
+		catch (Exception)
+		{
+			if (cancellationToken.IsCancellationRequested) return;
+			_resultsList.Adapter = null;
+			SetStatus("Search failed — check your connection.");
 			return;
+		}
 
-		_currentResults =
-			_service.PointResults?.ToList()
-			?? new List<PointResult>();
+		if (cancellationToken.IsCancellationRequested) return;
 
-		var items =
-			_currentResults
-				.Select(x =>
-					$"{x.City}{x.Name}")
-				.ToArray();
+		_currentResults = _service.PointResults?.ToList() ?? new List<PointResult>();
 
+		if (_currentResults.Count == 0)
+		{
+			_resultsList.Adapter = null;
+			SetStatus("No stops found.");
+			return;
+		}
 
-		_resultsList.Adapter =
-			new global::Android.Widget.ArrayAdapter<string>(
-				this,
-				global::Android.Resource.Layout.SimpleListItem1,
-				items);
+		_resultsStatus!.Visibility = ViewStates.Gone;
+		_resultsList.Adapter = new global::Android.Widget.ArrayAdapter<string>(
+			this,
+			global::Android.Resource.Layout.SimpleListItemSingleChoice,   // see #4
+			_currentResults.Select(x => $"{x.City}{x.Name}").ToArray());
 	}
 
 
-	private void SaveWidget(
-		string stopId,
-		string stopName)
+	private void SaveWidget(string stopId, string stopName, int intervalMinutes)
 	{
-		WidgetStorage.Save(
-			this,
-			_widgetId,
-			new WidgetSettings
-			{
-				StopId = stopId,
-				StopName = stopName
-			});
+		WidgetStorage.Save(this, _widgetId, new WidgetSettings
+		{
+			StopId = stopId,
+			StopName = stopName,
+			IntervalMinutes = intervalMinutes
+		});
+
 	}
 
 
