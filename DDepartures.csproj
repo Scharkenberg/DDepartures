@@ -17,8 +17,8 @@
 	<ApplicationTitle>DDepartures</ApplicationTitle>
 	<ApplicationId>dev.Scharkenberg.DDepartures</ApplicationId>
 
-	<ApplicationDisplayVersion>0.3.3</ApplicationDisplayVersion>
-	<ApplicationVersion>3</ApplicationVersion>
+	<ApplicationDisplayVersion>0.4.0</ApplicationDisplayVersion>
+	<ApplicationVersion>1</ApplicationVersion>
 
 	<WindowsPackageType>MSIX</WindowsPackageType>
 
@@ -75,9 +75,14 @@
 
 
   <ItemGroup>
-    <None Remove="Platforms\Android\Resources\layout\departure_widget.xml" />
-    <None Remove="Platforms\Android\Resources\layout\widget_configuration.xml" />
-    <None Remove="Platforms\Android\Resources\xml\departure_widget_provider.xml" />
+	<None Remove="Platforms\Android\Resources\drawable\ic_refresh.xml" />
+	<None Remove="Platforms\Android\Resources\drawable\widget_background.xml" />
+	<None Remove="Platforms\Android\Resources\layout\departure_row_1.xml" />
+	<None Remove="Platforms\Android\Resources\layout\departure_widget.xml" />
+	<None Remove="Platforms\Android\Resources\layout\widget_configuration.xml" />
+	<None Remove="Platforms\Android\Resources\values-night\colors.xml" />
+	<None Remove="Platforms\Android\Resources\values\styles.xml" />
+	<None Remove="Platforms\Android\Resources\xml\departure_widget_provider.xml" />
   </ItemGroup>
 
 
@@ -104,7 +109,16 @@
 
 
   <ItemGroup>
-    <Folder Include="Platforms\Android\Resources\drawable\" />
+    <AndroidAsset Update="Platforms\Android\Assets\Fonts\CascadiaCode.ttf">
+      <Alias>CascadiaCode</Alias>
+    </AndroidAsset>
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <AndroidResource Update="Platforms\Android\Resources\font\cascadia_code.ttf">
+      <Alias>CascadiaCode</Alias>
+    </AndroidResource>
   </ItemGroup>
 
 </Project>

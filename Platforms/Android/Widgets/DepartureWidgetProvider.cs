@@ -1,6 +1,8 @@
 ﻿using Android.App;
 using Android.Appwidget;
 using Android.Content;
+using Android.Net;
+using Android.Util;
 
 namespace DDepartures.Platforms.Android.Widgets;
 
@@ -26,16 +28,18 @@ public class DepartureWidgetProvider : AppWidgetProvider
 		AppWidgetManager? appWidgetManager,
 		int[]? appWidgetIds)
 	{
+		global::Android.Util.Log.Debug(
+			"DDeparturesWidget",
+			$"OnUpdate called for {appWidgetIds?.Length ?? 0} widget(s).");
 		if (context == null || appWidgetIds == null)
 			return;
 
+		// GoAsync extends the receiver's lifetime past this method returning, so the
+		// OS won't kill the process mid-fetch before UpdateAsync's HTTP call and
+		// RemoteViews update actually complete.
+		var pendingResult = GoAsync();
 
-		foreach (var widgetId in appWidgetIds)
-		{
-			_ = DepartureWidgetUpdater.UpdateAsync(
-				context,
-				widgetId);
-		}
+		_ = RunUpdatesAsync(context, appWidgetIds, pendingResult);
 	}
 
 
@@ -60,9 +64,9 @@ public class DepartureWidgetProvider : AppWidgetProvider
 
 			if (widgetId != -1)
 			{
-				_ = DepartureWidgetUpdater.UpdateAsync(
-					context,
-					widgetId);
+				var pendingResult = GoAsync();
+
+				_ = RunUpdatesAsync(context, [widgetId], pendingResult);
 			}
 		}
 	}
@@ -81,6 +85,45 @@ public class DepartureWidgetProvider : AppWidgetProvider
 			WidgetStorage.Delete(
 				context,
 				widgetId);
+		}
+	}
+
+
+	private static async Task RunUpdatesAsync(
+		Context context,
+		int[] widgetIds,
+		BroadcastReceiver.PendingResult pendingResult)
+	{
+		global::Android.Util.Log.Debug(
+			"DDeparturesWidget",
+			$"RunUpdatesAsync called for {widgetIds.Length} widget(s).");
+		try
+		{
+			foreach (var widgetId in widgetIds)
+			{
+				var cm = (ConnectivityManager)context.GetSystemService(Context.ConnectivityService)!;
+
+				var network = cm.ActiveNetwork;
+				var caps = cm.GetNetworkCapabilities(network);
+
+				Log.Debug("DDeparturesWidget", $"Network={network}");
+				Log.Debug("DDeparturesWidget", $"HasInternet={caps?.HasCapability(NetCapability.Internet)}");
+				Log.Debug("DDeparturesWidget", $"Validated={caps?.HasCapability(NetCapability.Validated)}");
+				Log.Debug("DDeparturesWidget", $"HasDns={caps?.HasCapability(NetCapability.NotRestricted)}");
+				Log.Debug("DDeparturesWidget",	$"PID={(global::Android.OS.Process.MyPid())}");
+				Log.Debug("DDeparturesWidget",	$"Thread={Environment.CurrentManagedThreadId}");
+				await DepartureWidgetUpdater.UpdateAsync(
+					context,
+					widgetId);
+			}
+		}
+		catch (Exception ex)
+		{
+			global::Android.Util.Log.Error("DDeparturesWidget", ex.ToString());
+		}
+		finally
+		{
+			pendingResult.Finish();
 		}
 	}
 }

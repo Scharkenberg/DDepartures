@@ -5,8 +5,8 @@ namespace DDepartures.Platforms.Android.Widgets;
 public sealed class WidgetSettings
 {
 	public string StopId { get; set; } = string.Empty;
-
 	public string StopName { get; set; } = string.Empty;
+	public DateTime LastUpdate { get; set; } = DateTime.MinValue;
 
 	public static WidgetSettings Empty => new();
 

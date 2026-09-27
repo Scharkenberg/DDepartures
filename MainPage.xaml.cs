@@ -250,6 +250,29 @@
 			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
+		public async Task LoadWidgetStopAsync(string stopId)
+		{
+			CurrentStop = stopId;
+			SearchEntry.Text = stopId;
+			await SearchDeparturesAsync(manual: true);
+		}
+
+		protected override async void OnAppearing()
+		{
+			base.OnAppearing();
+#if ANDROID
+			var stopId =
+				DDepartures.Platforms.Android.WidgetLaunchRequest.PendingStopId;
+
+			if (!string.IsNullOrWhiteSpace(stopId))
+			{
+				DDepartures.Platforms.Android.WidgetLaunchRequest.PendingStopId = null;
+
+				await LoadWidgetStopAsync(stopId);
+			}
+#endif
+		}
+
 		public void Dispose()
 		{
 			Dispose(true);

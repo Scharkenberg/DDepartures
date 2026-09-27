@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#DDCC00</color>
-    <color name="colorPrimaryDark">#DDCC00</color>
-    <color name="colorAccent">#DDCC00</color>
-    <color name="colorAccentDark">#0033DD</color>
+
+  <color name="colorPrimary">#DDCC00</color>
+  <color name="colorPrimaryDark">#DDCC00</color>
+  <color name="colorAccent">#DDCC00</color>
+  <color name="colorAccentDark">#0033DD</color>
+
+  <!-- Widget -->
+  <color name="widgetBackground">#FFFFFF</color>
+  <color name="widgetText">#1A1A1A</color>
+  <color name="widgetPrimary">#EEDD00</color>
+  <color name="widgetDivider">#DDCC00</color>
+
 </resources>

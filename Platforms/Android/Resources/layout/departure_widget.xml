@@ -1,18 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/widgetContent"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical"
-	android:padding="4dp">
+	android:padding="4dp"
+	android:background="@drawable/widget_background">
 
 
-  <!-- Header row -->
+  <!-- Header -->
   <LinearLayout
+	  android:id="@+id/widgetHeader"
 	  android:layout_width="match_parent"
 	  android:layout_height="40dp"
 	  android:orientation="horizontal"
-	  android:gravity="center_vertical">
+	  android:gravity="center_vertical"
+	  android:background="@color/widgetPrimary"
+	  android:paddingStart="8dp"
+	  android:paddingEnd="4dp">
 
 
 	<TextView
@@ -22,96 +28,52 @@
 		android:layout_weight="1"
 		android:gravity="center_vertical"
 		android:text="Select stop"
-		android:textSize="16sp"
+		android:textColor="@color/colorAccentDark"
+		android:textSize="14sp"
 		android:textStyle="bold"
 		android:maxLines="1"
-		android:ellipsize="end"/>
+		android:ellipsize="end"
+		android:fontFamily="@font/cascadia_code"/>
 
 
 	<ImageButton
 		android:id="@+id/widgetRefresh"
-		android:layout_width="36dp"
-		android:layout_height="36dp"
+		android:layout_width="16dp"
+		android:layout_height="16dp"
+		android:tint="@color/colorAccentDark"
 		android:background="@android:color/transparent"
-		android:src="@android:drawable/ic_popup_sync"
+		android:src="@drawable/ic_refresh"
 		android:contentDescription="Refresh"/>
 
   </LinearLayout>
 
 
-  <!-- Divider -->
-  <View
+  <TextView
 	  android:layout_width="match_parent"
 	  android:layout_height="1dp"
-	  android:background="#808080"/>
+	  android:background="@color/widgetDivider"/>
 
 
   <!-- Departures -->
+  <LinearLayout
+	android:id="@+id/widgetBody"
+	android:layout_width="match_parent"
+	android:layout_height="0dp"
+	android:layout_weight="1"
+	android:orientation="vertical"
+	android:background="@android:color/background_dark">
 
-  <TextView
-	  android:id="@+id/departure1"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
+	<include layout="@layout/departure_row_1"/>
 
+	<include layout="@layout/departure_row_2"/>
 
-  <TextView
-	  android:id="@+id/departure2"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
+	<include layout="@layout/departure_row_3"/>
 
+	<include layout="@layout/departure_row_4"/>
 
-  <TextView
-	  android:id="@+id/departure3"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
+	<include layout="@layout/departure_row_5"/>
 
-
-  <TextView
-	  android:id="@+id/departure4"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
-
-
-  <TextView
-	  android:id="@+id/departure5"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
-
-
-  <TextView
-	  android:id="@+id/departure6"
-	  android:layout_width="match_parent"
-	  android:layout_height="0dp"
-	  android:layout_weight="1"
-	  android:gravity="center_vertical"
-	  android:textSize="13sp"
-	  android:singleLine="true"
-	  android:ellipsize="end"/>
-
+	<include layout="@layout/departure_row_6"/>
+  </LinearLayout>
 
 </LinearLayout>

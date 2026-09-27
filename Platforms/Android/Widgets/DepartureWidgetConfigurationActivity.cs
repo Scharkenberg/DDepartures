@@ -26,6 +26,13 @@ public class DepartureWidgetConfigurationActivity : Activity
 	private string? _selectedStopId;
 	private string? _selectedStopName;
 
+	// The exact set of results the currently-visible adapter was built from - the
+	// tap handler resolves against this, never against the live _service.PointResults,
+	// so a race with an overlapping search can't make a tap resolve to the wrong stop.
+	private List<PointResult> _currentResults = new();
+
+	private CancellationTokenSource? _searchDebounceCts;
+
 
 	protected override void OnCreate(Bundle? savedInstanceState)
 	{
@@ -99,14 +106,10 @@ public class DepartureWidgetConfigurationActivity : Activity
 
 		_resultsList.ItemClick += (_, e) =>
 		{
-			global::Android.Util.Log.Debug("DDeparturesWidget",	$"Clicked row {e.Position}");
-			if (_service?.PointResults == null)
+			if (e.Position < 0 || e.Position >= _currentResults.Count)
 				return;
 
-			if (e.Position < 0 || e.Position >= _service.PointResults.Count)
-				return;
-
-			var point = _service.PointResults[e.Position];
+			var point = _currentResults[e.Position];
 
 			_selectedStopId = point.Id;
 			_selectedStopName = point.City + point.Name;
@@ -177,11 +180,11 @@ public class DepartureWidgetConfigurationActivity : Activity
 
 		buttonRow.AddView(
 			_doneButton,
-			new global::Android.Widget.LinearLayout.LayoutParams(0,	ViewGroup.LayoutParams.WrapContent,	1));
+			new global::Android.Widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
 
 		buttonRow.AddView(
 			cancelButton,
-			new global::Android.Widget.LinearLayout.LayoutParams(0,	ViewGroup.LayoutParams.WrapContent,	1));
+			new global::Android.Widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1));
 
 		layout.AddView(buttonRow, new global::Android.Widget.LinearLayout.LayoutParams(
 			global::Android.Views.ViewGroup.LayoutParams.MatchParent,
@@ -192,10 +195,7 @@ public class DepartureWidgetConfigurationActivity : Activity
 		ApplySystemInsets(layout);
 
 
-		_searchBox.TextChanged += async (_, _) =>
-		{
-			await SearchAsync();
-		};
+		_searchBox.TextChanged += (_, _) => QueueSearch();
 	}
 
 
@@ -233,7 +233,40 @@ public class DepartureWidgetConfigurationActivity : Activity
 	}
 
 
-	private async Task SearchAsync()
+	// Debounces the search box the same way MainPage does for the phone app - waits
+	// for a pause in typing before actually querying, and a later keystroke's timer
+	// cancels any earlier one still waiting.
+	private void QueueSearch()
+	{
+		_searchDebounceCts?.Cancel();
+		_searchDebounceCts?.Dispose();
+
+		var cts = new CancellationTokenSource();
+		_searchDebounceCts = cts;
+
+		_ = DebounceAndSearchAsync(cts);
+	}
+
+
+	private async Task DebounceAndSearchAsync(CancellationTokenSource cts)
+	{
+		try
+		{
+			await Task.Delay(TimeSpan.FromMilliseconds(500), cts.Token);
+		}
+		catch (TaskCanceledException)
+		{
+			return;
+		}
+
+		if (cts.IsCancellationRequested)
+			return;
+
+		await SearchAsync(cts.Token);
+	}
+
+
+	private async Task SearchAsync(CancellationToken cancellationToken)
 	{
 		if (_service == null ||
 			_searchBox == null ||
@@ -248,6 +281,7 @@ public class DepartureWidgetConfigurationActivity : Activity
 		if (string.IsNullOrWhiteSpace(query))
 		{
 			_resultsList.Adapter = null;
+			_currentResults = new List<PointResult>();
 			return;
 		}
 
@@ -257,9 +291,17 @@ public class DepartureWidgetConfigurationActivity : Activity
 			limit: 15,
 			stopsOnly: true);
 
+		// A newer keystroke already started a later search while this one was
+		// in flight - let that one's result stand instead of overwriting it.
+		if (cancellationToken.IsCancellationRequested)
+			return;
+
+		_currentResults =
+			_service.PointResults?.ToList()
+			?? new List<PointResult>();
 
 		var items =
-			_service.PointResults
+			_currentResults
 				.Select(x =>
 					$"{x.City}{x.Name}")
 				.ToArray();
@@ -290,6 +332,8 @@ public class DepartureWidgetConfigurationActivity : Activity
 
 	protected override void OnDestroy()
 	{
+		_searchDebounceCts?.Cancel();
+		_searchDebounceCts?.Dispose();
 		_service?.Dispose();
 
 		base.OnDestroy();
