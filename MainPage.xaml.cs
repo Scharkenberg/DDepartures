@@ -24,7 +24,19 @@
 			FindBtn.Clicked += OnFindClicked;
 			SearchBtn.Clicked += OnSearchClicked;
 			RefView.Refreshing += OnRefreshViewRefreshing;
+
+#if ANDROID
+			Platforms.Android.WidgetLaunchRequest.Requested += OnWidgetLaunchRequested;
+
+			if (Platforms.Android.WidgetLaunchRequest.Consume() is { } pending)
+				_ = LoadWidgetStopAsync(pending.StopId, pending.StopName);
+#endif		
 		}
+
+#if ANDROID
+		private async void OnWidgetLaunchRequested(string stopId, string stopName)
+			=> await MainThread.InvokeOnMainThreadAsync(() => LoadWidgetStopAsync(stopId, stopName));
+#endif
 
 		private async void OnRefreshViewRefreshing(object? sender, EventArgs e)
 			=> await SearchDeparturesAsync(manual: true);
@@ -250,27 +262,16 @@
 			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 		}
 
-		public async Task LoadWidgetStopAsync(string stopId)
+		public async Task LoadWidgetStopAsync(string stopId, string stopName)
 		{
 			CurrentStop = stopId;
-			SearchEntry.Text = stopId;
+			SearchEntry.Text = stopName;
 			await SearchDeparturesAsync(manual: true);
 		}
 
 		protected override async void OnAppearing()
 		{
 			base.OnAppearing();
-#if ANDROID
-			var stopId =
-				DDepartures.Platforms.Android.WidgetLaunchRequest.PendingStopId;
-
-			if (!string.IsNullOrWhiteSpace(stopId))
-			{
-				DDepartures.Platforms.Android.WidgetLaunchRequest.PendingStopId = null;
-
-				await LoadWidgetStopAsync(stopId);
-			}
-#endif
 		}
 
 		public void Dispose()
@@ -299,6 +300,9 @@
 				if (svc is IDisposable d)
 					d.Dispose();
 			}
+#if ANDROID
+			Platforms.Android.WidgetLaunchRequest.Requested -= OnWidgetLaunchRequested;
+#endif
 
 			disposed = true;
 			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);

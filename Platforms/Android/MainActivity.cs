@@ -11,7 +11,6 @@ public class MainActivity : MauiAppCompatActivity
 	protected override void OnCreate(Bundle? savedInstanceState)
 	{
 		base.OnCreate(savedInstanceState);
-
 		ProcessWidgetIntent(Intent);
 	}
 
@@ -19,22 +18,17 @@ public class MainActivity : MauiAppCompatActivity
 	protected override void OnNewIntent(Intent? intent)
 	{
 		base.OnNewIntent(intent);
-
 		ProcessWidgetIntent(intent);
 	}
 
 
 	private static void ProcessWidgetIntent(Intent? intent)
 	{
-		if (intent == null)
+		var stopId = intent?.GetStringExtra("stopId");
+		if (string.IsNullOrWhiteSpace(stopId))
 			return;
 
-		var stopId =
-			intent.GetStringExtra("stopId");
-
-		if (!string.IsNullOrWhiteSpace(stopId))
-		{
-			Platforms.Android.WidgetLaunchRequest.PendingStopId = stopId;
-		}
+		var stopName = intent?.GetStringExtra("stopName") ?? stopId;
+		Platforms.Android.WidgetLaunchRequest.Raise(stopId, stopName);
 	}
 }

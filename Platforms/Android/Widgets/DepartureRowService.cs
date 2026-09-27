@@ -80,23 +80,27 @@ public class DepartureRowFactory : Java.Lang.Object, RemoteViewsService.IRemoteV
 			_ => "❓"
 		};
 
-		var line = row.Line?.Length > 10 ? row.Line[..10] : row.Line ?? "";
+		var line = row.Line?.Trim().Length > 9 ? row.Line?.Trim()[..9] : row.Line?.Trim() ?? "";
 
 		rv.SetTextViewText(AndroidResource.Id.line, line);
 		rv.SetTextViewText(AndroidResource.Id.mode, mode);
 		rv.SetTextViewText(AndroidResource.Id.destination, row.Destination ?? "");
 		rv.SetTextViewText(AndroidResource.Id.time, row.Time ?? "");
-
-		// Per-row tap target for the SetPendingIntentTemplate on the ListView
-		// (wired up in DepartureWidgetUpdater - see next step).
-		var fillIn = new Intent();
-		fillIn.PutExtra("stopId", row.Platform);
-		rv.SetOnClickFillInIntent(AndroidResource.Id.rowRoot, fillIn);
+		rv.SetOnClickFillInIntent(AndroidResource.Id.rowRoot, new Intent());
 
 		return rv;
 	}
 
-	public RemoteViews? LoadingView => null;
+	public RemoteViews? LoadingView
+	{
+		get
+		{
+			var rv = new RemoteViews(_context.PackageName, AndroidResource.Layout.departure_row);
+			rv.SetTextViewText(AndroidResource.Id.destination, "Loading…");
+			return rv;
+		}
+	}
+
 	public int ViewTypeCount => 1;
 	public int Count => _departures.Count;
 	public bool HasStableIds => true;

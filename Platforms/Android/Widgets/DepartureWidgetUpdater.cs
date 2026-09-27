@@ -28,7 +28,7 @@ public static class DepartureWidgetUpdater
 
 			AttachRefreshButton(context, views, widgetId);
 			AttachTitleClick(context, views, widgetId);
-			AttachRowClickTemplate(context, views, widgetId);
+			AttachRowClickTemplate(context, views, widgetId, settings);
 			AttachConfigurationButton(context, views, widgetId);
 			AttachRemoteAdapter(context, views, widgetId);
 
@@ -59,7 +59,7 @@ public static class DepartureWidgetUpdater
 						$"Error while updating widget {widgetId}: {ex}");
 				}
 
-				var departures = service.DepItems?.Take(6).ToList() ?? [];
+				var departures = service.DepItems?.Take(30).ToList() ?? [];
 
 				if (departures.Count == 0)
 				{
@@ -123,19 +123,20 @@ public static class DepartureWidgetUpdater
 	}
 
 	private static void AttachRowClickTemplate(
-		Context context,
-		RemoteViews views,
-		int widgetId)
+	Context context,
+	RemoteViews views,
+	int widgetId,
+	WidgetSettings settings)
 	{
 		var intent = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName);
 		if (intent == null)
 			return;
 
-		// stopId comes from each row's SetOnClickFillInIntent in DepartureRowFactory.
+		intent.PutExtra("stopId", settings.StopId);
+		intent.PutExtra("stopName", settings.StopName);
+
 		var template = PendingIntent.GetActivity(
-			context,
-			widgetId,
-			intent,
+			context, widgetId, intent,
 			PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
 
 		views.SetPendingIntentTemplate(AndroidResource.Id.widgetBody, template);

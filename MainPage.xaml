@@ -89,7 +89,7 @@
 								BackgroundColor="{AppThemeBinding Light={StaticResource Primary},
 								                                  Dark={StaticResource PrimaryDark}}"
 								HorizontalScrollBarVisibility="Never"
-								MaximumWidthRequest="84"
+								MaximumWidthRequest="94"
 								Orientation="Horizontal"
 								VerticalOptions="Fill">
 								<Label
@@ -239,7 +239,7 @@
 							Grid.Column="0"
 							FontFamily="CascadiaCode"
 							FontSize="18"
-							LineBreakMode="TailTruncation"
+							LineBreakMode="NoWrap"
 							Text="{Binding City}"
 							VerticalTextAlignment="Center" />
 						<Label

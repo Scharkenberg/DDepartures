@@ -131,7 +131,7 @@ namespace DDepartures
 		// the old Widget API (Abfahrten.do) doesn't expose.
 		//
 		// allowShortcutFallback: if the given args isn't a plain numeric stop ID and /dm
-		// rejects it, try resolving it as a stop shortcut (e.g. "PLA" -> Postplatz) via
+		// rejects it, try resolving it as a stop shortcut (e.g. "POP" -> Postplatz) via
 		// PointFinder and retry once with the resolved ID. Set to false on the retry
 		// itself to avoid looping.
 		public async Task<int> RefreshDataAsync(string args, bool allowShortcutFallback = true)
@@ -173,7 +173,7 @@ namespace DDepartures
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					DepItems?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -181,7 +181,7 @@ namespace DDepartures
 					StatusResponse = $"{ex.InnerException?.ToString() ?? ex.ToString()}";
 					LastStatus = 0;
 					DepItems?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -189,7 +189,7 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.ToString()}";
 					LastStatus = 500;
 					DepItems?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -198,7 +198,7 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					DepItems?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -212,14 +212,14 @@ namespace DDepartures
 						var resolvedId = await TryResolveStopShortcutAsync(args);
 						if (resolvedId != null)
 						{
-							//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 							return await RefreshDataAsync(resolvedId, allowShortcutFallback: false);
 						}
 					}
 
 					StatusResponse = LastStatus + " - " + response.StatusCode.ToString();
 					DepItems?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -239,7 +239,7 @@ namespace DDepartures
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						DepItems = [];
-						//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 				}
@@ -248,7 +248,7 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					DepItems = [];
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -264,7 +264,7 @@ namespace DDepartures
 						var resolvedId = await TryResolveStopShortcutAsync(args);
 						if (resolvedId != null)
 						{
-							//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 							return await RefreshDataAsync(resolvedId, allowShortcutFallback: false);
 						}
 					}
@@ -276,7 +276,7 @@ namespace DDepartures
 						_ => $"Server reported: {doc.Status?.Code ?? "unknown status"}"
 					};
 					DepItems = [];
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -288,7 +288,7 @@ namespace DDepartures
 					{
 						StatusResponse = "No departures found for this station";
 						DepItems = [];
-						//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 
@@ -321,7 +321,7 @@ namespace DDepartures
 								{
 									String sign = delayMinutes > 0 ? "+" : "-";
 									if (delayMinutes < 0) d.State = "Early";
-									destination = "(" + sign + Math.Abs(delayMinutes).ToString(CultureInfo.InvariantCulture) + ") " + destination;
+									destination += " " + sign + Math.Abs(delayMinutes).ToString(CultureInfo.InvariantCulture);
 								}
 							}
 						}
@@ -333,7 +333,7 @@ namespace DDepartures
 
 						parsed.Add(new DepartureRow
 						{
-							Line = d.LineName?.Trim() ?? "",
+							Line = NormalizeLineNumber(d.LineName),
 							Destination = destination,
 							Time = timeText,
 							Platform = d.Platform?.Name?.Trim() is string platform && !string.IsNullOrEmpty(platform) ? d.Platform.Type?.Trim() switch
@@ -356,14 +356,14 @@ namespace DDepartures
 						while (DepItems.Count > MAX_DEPARTURES)
 							DepItems.RemoveAt(DepItems.Count - 1);
 					}
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					DepItems = [];
 					LastStatus = 500;
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -383,18 +383,18 @@ namespace DDepartures
 						}
 						foreach (var item in DepItems)
 						{
-							item?.Line = item.Line.PadLeft(LineCharCount > 8 ? 8 : LineCharCount);
+							item?.Line = item.Line.PadLeft(LineCharCount > 9 ? 9 : LineCharCount);
 							item?.Time = item.Time.PadLeft(TimeCharCount);
 						}
 					}
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (Exception ex)
 				{
 					StatusResponse = $"Error formatting departures: {ex.Message}";
 					LastStatus = 500;
 				}
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -402,7 +402,7 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				DepItems = [];
 				LastStatus = 500;
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 		}
@@ -446,12 +446,12 @@ namespace DDepartures
 						return id;
 				}
 
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return null;
 			}
 			catch
 			{
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return null;
 			}
 		}
@@ -465,7 +465,7 @@ namespace DDepartures
 				{
 					StatusResponse = "Error: No query provided";
 					LastStatus = 400;
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -485,7 +485,7 @@ namespace DDepartures
 					StatusResponse = "Network timeout - no internet or server not responding";
 					LastStatus = 0;
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (HttpRequestException ex)
@@ -493,7 +493,7 @@ namespace DDepartures
 					StatusResponse = $"Network error: {ex.Message}";
 					LastStatus = 0;
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -501,7 +501,7 @@ namespace DDepartures
 					StatusResponse = $"Request failed: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -510,7 +510,7 @@ namespace DDepartures
 					StatusResponse = "Error: No response from server";
 					LastStatus = 500;
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -520,7 +520,7 @@ namespace DDepartures
 				if (response.StatusCode != System.Net.HttpStatusCode.OK)
 				{
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -533,7 +533,7 @@ namespace DDepartures
 						StatusResponse = "Error: Empty response from server";
 						LastStatus = 500;
 						PointResults?.Clear();
-						//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+						GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 						return LastStatus;
 					}
 				}
@@ -542,7 +542,7 @@ namespace DDepartures
 					StatusResponse = $"Failed to read response: {ex.Message}";
 					LastStatus = 500;
 					PointResults?.Clear();
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
@@ -556,7 +556,7 @@ namespace DDepartures
 						{
 							StatusResponse = "No points found in response";
 							PointResults = [];
-							//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+							GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 							return LastStatus;
 						}
 
@@ -577,14 +577,14 @@ namespace DDepartures
 							string city = parts.Length > 2 ? parts[2].Trim() : string.Empty;
 							string name = parts.Length > 3 ? parts[3].Trim() : string.Empty;
 
-							if (string.IsNullOrEmpty(city))
-								city = "Dresden";
+							if (string.IsNullOrEmpty(city)) city = "";
+							else city += " \u00b7\u00A0";
 
 							var result = new PointResult
 							{
 								Id = id,
-								City = city + " -",
-								Name = " " + name
+								City = city,
+								Name = name
 							};
 
 							parsed.Add(result);
@@ -600,14 +600,14 @@ namespace DDepartures
 
 						LastSuccessfulArgs = query;
 					}
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				}
 				catch (JsonException ex)
 				{
 					StatusResponse = $"Invalid JSON response: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 				catch (Exception ex)
@@ -615,11 +615,11 @@ namespace DDepartures
 					StatusResponse = $"Error parsing points: {ex.Message}";
 					PointResults = [];
 					LastStatus = 500;
-					//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+					GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 					return LastStatus;
 				}
 
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 			catch (Exception ex)
@@ -627,7 +627,7 @@ namespace DDepartures
 				StatusResponse = $"Unexpected error: {ex.Message}";
 				PointResults = [];
 				LastStatus = 500;
-				//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+				GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 				return LastStatus;
 			}
 		}
@@ -655,7 +655,23 @@ namespace DDepartures
 				StatusResponse = $"Periodic refresh error: {ex.Message}";
 				DeparturesRefreshing = false;
 			}
-			//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+		}
+
+		private static string NormalizeLineNumber(string? line)
+		{
+			if (string.IsNullOrWhiteSpace(line))
+				return line ?? string.Empty;
+
+			var tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+			var cutIndex = Array.FindIndex(tokens, t => t.Any(char.IsDigit));
+
+			// No digit anywhere - nothing to anchor the cut on, leave untouched
+			// rather than guess.
+			return cutIndex >= 0
+				? string.Join(' ', tokens.Take(cutIndex + 1))
+				: line.Trim();
 		}
 
 		// IDisposable
@@ -679,7 +695,7 @@ namespace DDepartures
 				}
 			}
 
-			//GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+			GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 			_disposed = true;
 		}
 
