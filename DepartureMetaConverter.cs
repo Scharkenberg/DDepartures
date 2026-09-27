@@ -78,10 +78,10 @@ namespace DDepartures
 
 		private static string? FormatOccupancy(string? occupancy) => occupancy switch
 		{
-			"ManySeats" => "◐○",
-			"StandingOnly" => "◑●",
-			"Full" => "●●",
-			"Unknown" => "○○",
+			"ManySeats" => "●○○",
+			"StandingOnly" => "●●○",
+			"Full" => "●●●",
+			"Unknown" => "○○○",
 			_ => null // missing or unrecognized future value
 		};
 	}

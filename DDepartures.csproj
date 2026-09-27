@@ -57,33 +57,32 @@
 
 	<MauiIcon Include="Resources\AppIcon\icon96px.png" />
 
-	<MauiSplashScreen Include="Resources\Splash\splash_doodle.png"
-                      Color="#000000"
-                      BaseSize="512,512">
+	<MauiSplashScreen Include="Resources\Splash\splash_doodle.png" Color="#000000" BaseSize="512,512">
 	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	</MauiSplashScreen>
 
 	<MauiImage Include="Resources\Images\*" />
 
-	<MauiImage Update="Resources\Images\dotnet_bot.png"
-               Resize="True"
-               BaseSize="300,185" />
+	<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
 
-	<MauiFont Include="Resources\Fonts\London.ttf"
-              Alias="London" />
+	<MauiFont Include="Resources\Fonts\London.ttf" Alias="London" />
 
-	<MauiFont Include="Resources\Fonts\CascadiaCode.ttf"
-              Alias="CascadiaCode" />
+	<MauiFont Include="Resources\Fonts\CascadiaCode.ttf" Alias="CascadiaCode" />
 
-	<MauiAsset Include="Resources\Raw\**"
-               LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 
   </ItemGroup>
 
 
   <ItemGroup>
-	<PackageReference Include="Microsoft.Maui.Controls"
-                      Version="11.0.0-preview.6.26360.8" />
+    <None Remove="Platforms\Android\Resources\layout\departure_widget.xml" />
+    <None Remove="Platforms\Android\Resources\layout\widget_configuration.xml" />
+    <None Remove="Platforms\Android\Resources\xml\departure_widget_provider.xml" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+	<PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-preview.6.26360.8" />
   </ItemGroup>
 
 
@@ -101,6 +100,11 @@
 	  <Generator>ResXFileCodeGenerator</Generator>
 	  <LastGenOutput>Resources.Designer.cs</LastGenOutput>
 	</EmbeddedResource>
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="Platforms\Android\Resources\drawable\" />
   </ItemGroup>
 
 </Project>

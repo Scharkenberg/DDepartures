@@ -58,7 +58,7 @@
 						<Grid
 							Padding="0,0,0,0"
 							ColumnDefinitions="2, 4, Auto, 4, 8, *, 8, Auto, Auto, 2"
-							RowDefinitions="6, Auto, Auto, 6, 2">
+							RowDefinitions="6, *, *, 6, 2">
 							<Grid.GestureRecognizers>
 								<TapGestureRecognizer
 									Buttons="Primary, Secondary"
